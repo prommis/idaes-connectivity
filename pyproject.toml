@@ -33,7 +33,7 @@ dependencies = [
     "pyomo >= 6.7.0",
 ]
 [project.scripts]
-connectivity = "idaes_connectivity.connectivity:main"
+connectivity = "idaes_connectivity.cli:main"
 
 [tool.setuptools_scm]
 
