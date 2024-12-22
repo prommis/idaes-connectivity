@@ -1,3 +1,13 @@
+###############################################################################
+# PrOMMiS was produced under the DOE Process Optimization and Modeling
+# for Minerals Sustainability (“PrOMMiS”) initiative, and is
+# Copyright © 2024-2025 by the software owners: The Regents of the
+# University of California, through Lawrence Berkeley National
+# Laboratory, National Technology & Engineering Solutions of Sandia, LLC,
+# Carnegie Mellon University, West Virginia University Research
+# Corporation, University of Notre Dame, and Georgia Institute of
+# Technology. All rights reserved.
+###############################################################################
 """
 Command-line program
 """
@@ -8,13 +18,12 @@ from pathlib import Path
 import sys
 
 # package
-from idaes_connectivity.connectivity import create_from_matrix, create_from_model
-from idaes_connectivity.const import OutputFormats
+import idaes_connectivity.base as ic
+from idaes_connectivity.const import OutputFormats, AS_STRING
 
 __author__ = "Dan Gunter (LBNL)"
 
 
-AS_STRING = "-"
 SCRIPT_NAME = "connectivity"
 _log = logging.getLogger(SCRIPT_NAME)
 
@@ -56,7 +65,9 @@ def csv_main(args) -> int:
     fmt_opt = {"stream_labels": args.labels, "direction": args.direction}
 
     try:
-        create_from_matrix(args.source, args.ofile, args.to, formatter_options=fmt_opt)
+        conn = ic.Connectivity(args.source)
+        formatter = get_formatter(args.to)
+        formatter.write()
     except Exception as err:
         _log.info("[ end ] create from matrix (1)")
         _log.error(f"{err}")
@@ -80,17 +91,12 @@ def module_main(args) -> int:
     if args.ofile is None:
         args.ofile = AS_STRING
 
-    mermaid_options = {"stream_labels": args.labels, "direction": args.direction}
+    options = {"stream_labels": args.labels, "direction": args.direction}
 
     try:
-        create_from_model(
-            module_name=args.source,
-            ofile=args.ofile,
-            to_format=args.to,
-            flowsheet_attr=args.fs,
-            build_func=args.build,
-            formatter_options=mermaid_options,
-        )
+        conn = ic.Connectivity(module_name=args.source)
+        formatter = get_formatter(args.to, options)
+        formatter.write()
     except RuntimeError as err:
         _log.info("[ end ] create from Python model (1)")
         _log.error(f"{err}")
@@ -98,6 +104,20 @@ def module_main(args) -> int:
     _log.info("[ end ] create from Python model")
 
     return 0
+
+
+def get_formatter(fmt: str, options=None) -> ic.Formatter:
+    options = {} if options is None else options
+    fmt = fmt.lower().strip()
+    if fmt == OutputFormats.CSV.value:
+        clazz = ic.CSV
+    elif fmt == OutputFormats.D2.value:
+        clazz = ic.D2
+    elif fmt == OutputFormats.MERMAID.value:
+        clazz = ic.Mermaid
+    else:
+        raise ValueError(f"Unrecognized output format: {fmt}")
+    return clazz(**options)
 
 
 USAGE = f"""
@@ -129,19 +149,12 @@ Example command-lines (showing the two modes):
     # Generate the connectivity matrix in uky_conn.csv
     {SCRIPT_NAME} prommis.uky.uky_flowsheet -O uky_conn.csv --to csv
 
-    # Generate the MermaidJS code wrapped in a HTML page that can be viewed in a
-    # browser without any further installation (MermaidJS is fetched from the network)
-    # The page will be called 'uky_conn.html' (since no filename was specified).
-    {SCRIPT_NAME} uky_conn.csv --to html
-
-    # Print the 'raw' MermaidJS code to the console instead of to a file
+    # Print the MermaidJS diagram to the console instead of to a file
     {SCRIPT_NAME}  uky_conn.csv --to mermaid --output-file "-"
 
-    # Print mermaid info to default file, with streams labeled
-    {SCRIPT_NAME} uky_conn.csv --to mermaid --labels
-    # (console)> Output in: uky_conn.mmd
-
-For more information about MermaidJS, see http://mermaid.js.org
+    # Print input for D2 to default file, with streams labeled
+    {SCRIPT_NAME} uky_conn.csv --to d2 --labels
+    # (console)> Output in: uky_conn.d2
 
 The connectivity matrix format is:
 
