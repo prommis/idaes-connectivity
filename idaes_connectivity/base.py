@@ -244,7 +244,7 @@ class Connectivity:
             stream_i = idx
 
             # build rows
-            endpoints = [-1, -1]
+            endpoints = [None, None]
             for ep, unit_name in enumerate(
                 [
                     src_name,
@@ -264,7 +264,7 @@ class Connectivity:
             rows[stream_i][endpoints[1]] = 1
 
         self._header = ["Arcs"] + units
-        self._rows = rows
+        self._rows = [[streams[i]] + r for i, r in enumerate(rows)]
 
     @staticmethod
     def _model_unit_name(block):

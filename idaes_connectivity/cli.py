@@ -24,7 +24,7 @@ from idaes_connectivity.const import OutputFormats, AS_STRING
 __author__ = "Dan Gunter (LBNL)"
 
 
-SCRIPT_NAME = "connectivity"
+SCRIPT_NAME = "idaes-conn"
 _log = logging.getLogger(SCRIPT_NAME)
 
 

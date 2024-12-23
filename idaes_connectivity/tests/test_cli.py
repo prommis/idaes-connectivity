@@ -4,10 +4,9 @@ Tests for command-line interface module.
 
 import pytest
 from idaes_connectivity.cli import main
-from idaes_connectivity.tests import connectivity_data as cdata
 
-# this roundabout method avoids pylint warnings
-uky_csv_data, uky_mermaid_data = cdata.uky_csv, cdata.uky_mermaid
+ex_mod = "idaes_connectivity.tests.example_flowsheet"
+ex_csv = "example_flowsheet.csv"
 
 
 @pytest.mark.unit
@@ -15,34 +14,51 @@ uky_csv_data, uky_mermaid_data = cdata.uky_csv, cdata.uky_mermaid
     "args,code",
     [
         (["--usage"], 0),
-        # TODO: Replace with flowsheet not dependent on Prommis
-        #        (["prommis.uky.uky_flowsheet", "-O", "{path}/uky_conn.csv", "--to", "csv"], 0),
-        #        (["prommis.uky.uky_flowsheet", "-O", "-", "--to", "csv"], 0),
-        #        (
-        #            [
-        #                "prommis.uky.uky_flowsheet",
-        #                "-tmodule",
-        #                "-O",
-        #                "{path}/uky_conn.csv",
-        #                "--to",
-        #                "csv",
-        #            ],
-        #            0,
-        #        ),
+        (
+            [
+                ex_mod,
+                "-O",
+                "{path}/" + ex_csv,
+                "--to",
+                "csv",
+            ],
+            0,
+        ),
+        ([ex_mod, "-O", "-", "--to", "csv"], 0),
+        (
+            [
+                ex_mod,
+                "-tmodule",
+                "-O",
+                "{path}/" + ex_csv,
+                "--to",
+                "csv",
+            ],
+            0,
+        ),
         (["invalidmodule.1.name"], 2),
         (
             ["prommis.me.this"],
             1,
         ),
-        (["{path}/uky_conn.csv"], 0),
-        (["{path}/uky_conn.csv", "-v"], 0),
-        (["{path}/uky_conn.csv", "-vv"], 0),
-        (["{path}/uky_conn.csv", "-q"], 0),
-        (["{path}/uky_conn.csv", "-q", "-v"], 0),
-        (["{path}/uky_conn.txt"], 0),
-        (["{path}/uky_conn.csv", "-tcsv"], 0),
-        (["{path}/uky_conn.csv", "--to", "mermaid", "--output-file", "-"], 0),
-        (["{path}/uky_conn.csv", "--to", "mermaid", "--labels"], 0),
+        (["{path}/" + ex_csv], 0),
+        (["{path}/" + ex_csv, "-v"], 0),
+        (["{path}/" + ex_csv, "-vv"], 0),
+        (["{path}/" + ex_csv, "-q"], 0),
+        (["{path}/" + ex_csv, "-q", "-v"], 0),
+        (["{path}/output.txt"], 0),
+        (["{path}/" + ex_csv, "-tcsv"], 0),
+        (
+            [
+                "{path}/" + ex_csv,
+                "--to",
+                "mermaid",
+                "--output-file",
+                "-",
+            ],
+            0,
+        ),
+        (["{path}/" + ex_csv, "--to", "mermaid", "--labels"], 0),
         (["{path}/nope.csv", "--to", "mermaid", "--labels"], 2),
         (["{path}/nope.csv", "--to", "mermaid", "--type", "csv"], 2),
         (["{path}/nope.mmd", "--to", "mermaid", "--labels"], 2),
@@ -50,10 +66,10 @@ uky_csv_data, uky_mermaid_data = cdata.uky_csv, cdata.uky_mermaid
         (["{path}/junk.csv", "--to", "csv"], 1),
     ],
 )
-def test_main(tmp_path, args, code, uky_csv_data):
-    from_model = args and "uky_flowsheet" in args[0]
+def test_main(tmp_path, args, code):
+    from_model = args and (args[0] == ex_mod)
     if not from_model:
-        csv_file = tmp_path / "uky_conn.csv"
+        csv_file = tmp_path / ex_csv
         with csv_file.open("w") as f:
             for line in uky_csv_data:
                 f.write(line)
