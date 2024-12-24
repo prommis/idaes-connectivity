@@ -15,6 +15,7 @@ Command-line program
 import argparse
 import logging
 from pathlib import Path
+import re
 import sys
 
 # package
@@ -65,9 +66,9 @@ def csv_main(args) -> int:
     fmt_opt = {"stream_labels": args.labels, "direction": args.direction}
 
     try:
-        conn = ic.Connectivity(args.source)
-        formatter = get_formatter(args.to)
-        formatter.write()
+        conn = ic.Connectivity(input_file=args.source)
+        formatter = get_formatter(conn, args.to)
+        formatter.write(args.ofile)
     except Exception as err:
         _log.info("[ end ] create from matrix (1)")
         _log.error(f"{err}")
@@ -94,9 +95,9 @@ def module_main(args) -> int:
     options = {"stream_labels": args.labels, "direction": args.direction}
 
     try:
-        conn = ic.Connectivity(module_name=args.source)
-        formatter = get_formatter(args.to, options)
-        formatter.write()
+        conn = ic.Connectivity(input_module=args.source)
+        formatter = get_formatter(conn, args.to, options)
+        formatter.write(args.ofile)
     except RuntimeError as err:
         _log.info("[ end ] create from Python model (1)")
         _log.error(f"{err}")
@@ -106,7 +107,7 @@ def module_main(args) -> int:
     return 0
 
 
-def get_formatter(fmt: str, options=None) -> ic.Formatter:
+def get_formatter(conn: object, fmt: str, options=None) -> ic.Formatter:
     options = {} if options is None else options
     fmt = fmt.lower().strip()
     if fmt == OutputFormats.CSV.value:
@@ -117,7 +118,7 @@ def get_formatter(fmt: str, options=None) -> ic.Formatter:
         clazz = ic.Mermaid
     else:
         raise ValueError(f"Unrecognized output format: {fmt}")
-    return clazz(**options)
+    return clazz(conn, **options)
 
 
 USAGE = f"""
@@ -216,7 +217,7 @@ def main(command_line=None):
     # set nargs=? so --usage works without any other argument; though
     # this will require more checks later
     p.add_argument(
-        "source", help="Source data or module", metavar="FILE or MODULE", nargs="?"
+        "source", help="Source file or module", metavar="FILE or MODULE", nargs="?"
     )
     p.add_argument(
         "--type",

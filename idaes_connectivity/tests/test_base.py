@@ -12,6 +12,9 @@
 Tests for `base` module.
 """
 # stdlib
+from typing import List
+
+# third-party
 import pytest
 
 # package
@@ -37,10 +40,16 @@ def test_example_data(example_csv, example_mermaid, example_d2):
         (Mermaid(conn).write(None), example_mermaid),
         (D2(conn).write(None), example_d2),
     ):
-        # normalize ws and remove blank lines at end, if any
-        items = [t.rstrip() for t in text.split("\n")]
-        while items[-1] == "":
-            items = items[:-1]
+        # normalize ws and remove blank lines at end (if any)
+        items = list_rstrip([t.rstrip() for t in text.split("\n")])
         # compare line by line
         for i, item in enumerate(items):
             assert item == ref[i]
+
+
+def list_rstrip(x: List) -> List:
+    """Return list (copy) with empty items at end removed"""
+    i = len(x) - 1
+    while i > -1 and len(x[i]) == 0:
+        i -= 1
+    return x[: i + 1]

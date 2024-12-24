@@ -4,85 +4,91 @@ Tests for command-line interface module.
 
 import pytest
 from idaes_connectivity.cli import main
+from idaes_connectivity.tests.example_flowsheet_data import (
+    example_csv,
+    example_mermaid,
+    example_d2,
+)
+
+# avoid warnings about unused imports
+_1, _2, _3 = example_csv, example_d2, example_mermaid
 
 ex_mod = "idaes_connectivity.tests.example_flowsheet"
 ex_csv = "example_flowsheet.csv"
 
 
 @pytest.mark.unit
+def test_usage():
+    assert 0 == main(["--usage"])
+
+
+@pytest.mark.unit
+def test_help():
+    with pytest.raises(SystemExit):
+        main(["-h"])
+    with pytest.raises(SystemExit):
+        main(["--help"])
+
+
+run_matrix = []
+for source in "file", "module":
+    for fmt in ("csv", "mermaid", "d2"):
+        for fs_name in (None, "fs"):
+            for build_func in (None, "build"):
+                for labels in (False, True):
+                    for direction in (None, "LR", "TD"):
+                        for verbosity in (None, "v", "vv", "vvv"):
+                            run_matrix.append(
+                                (
+                                    source,
+                                    fmt,
+                                    fs_name,
+                                    build_func,
+                                    labels,
+                                    direction,
+                                    verbosity,
+                                )
+                            )
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize(
-    "args,code",
-    [
-        (["--usage"], 0),
-        (
-            [
-                ex_mod,
-                "-O",
-                "{path}/" + ex_csv,
-                "--to",
-                "csv",
-            ],
-            0,
-        ),
-        ([ex_mod, "-O", "-", "--to", "csv"], 0),
-        (
-            [
-                ex_mod,
-                "-tmodule",
-                "-O",
-                "{path}/" + ex_csv,
-                "--to",
-                "csv",
-            ],
-            0,
-        ),
-        (["invalidmodule.1.name"], 2),
-        (
-            ["prommis.me.this"],
-            1,
-        ),
-        (["{path}/" + ex_csv], 0),
-        (["{path}/" + ex_csv, "-v"], 0),
-        (["{path}/" + ex_csv, "-vv"], 0),
-        (["{path}/" + ex_csv, "-q"], 0),
-        (["{path}/" + ex_csv, "-q", "-v"], 0),
-        (["{path}/output.txt"], 0),
-        (["{path}/" + ex_csv, "-tcsv"], 0),
-        (
-            [
-                "{path}/" + ex_csv,
-                "--to",
-                "mermaid",
-                "--output-file",
-                "-",
-            ],
-            0,
-        ),
-        (["{path}/" + ex_csv, "--to", "mermaid", "--labels"], 0),
-        (["{path}/nope.csv", "--to", "mermaid", "--labels"], 2),
-        (["{path}/nope.csv", "--to", "mermaid", "--type", "csv"], 2),
-        (["{path}/nope.mmd", "--to", "mermaid", "--labels"], 2),
-        (["--labels"], 2),
-        (["{path}/junk.csv", "--to", "csv"], 1),
-    ],
+    "source_type,output_format,fs_name,build_func,labels,direction,verbosity",
+    run_matrix,
 )
-def test_main(tmp_path, args, code):
-    from_model = args and (args[0] == ex_mod)
-    if not from_model:
-        csv_file = tmp_path / ex_csv
-        with csv_file.open("w") as f:
-            for line in uky_csv_data:
-                f.write(line)
-                f.write("\n")
-        csv_txt_file = tmp_path / "uky_conn.txt"
-        with csv_txt_file.open("w") as f:
-            for line in uky_csv_data:
-                f.write(line)
-                f.write("\n")
-        (tmp_path / "junk.csv").open(mode="w").write("This,is,some\njunk\n")
-    for i in range(len(args)):
-        if "{" in args[i]:
-            args[i] = args[i].format(path=tmp_path)
-    print(f"Run CLI with args: {args}")
-    ret_code = main(command_line=args)
-    assert ret_code == code
+def test_cli(
+    tmp_path,
+    example_csv,
+    source_type,
+    output_format,
+    fs_name,
+    build_func,
+    labels,
+    direction,
+    verbosity,
+):
+    args = []
+    if source_type == "file":
+        input_path = tmp_path / "test.csv"
+        with open(input_path, "w") as f:
+            f.write("\n".join(example_csv))
+        args.append(str(input_path))
+    elif source_type == "module":
+        input_module = "idaes_connectivity.tests.example_flowsheet"
+        args.append(input_module)
+    else:
+        raise ValueError(f"Bad test parameter: source_type='{source_type}'")
+    output_path = tmp_path / "output.{output_format}"
+    args.extend(["-O", str(output_path), "--to", output_format])
+    if fs_name is not None:
+        args.extend(["--fs", fs_name])
+    if build_func is not None:
+        args.extend(["--build", build_func])
+    if labels:
+        args.append("--labels")
+    if direction is not None:
+        args.extend(["--direction", direction])
+    if verbosity is not None:
+        args.append(f"-{verbosity}")
+    assert 0 == main(args)
+    assert output_path.exists()
