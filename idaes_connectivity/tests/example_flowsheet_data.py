@@ -7,6 +7,8 @@ def example_csv():
         "Arcs,M01::ScalarMixer,H02::ScalarHeater,F03::ScalarFlash",
         "s01,-1,1,0",
         "s02,0,-1,1",
+        #        "f01,1,0,0",
+        #        "k01,0,0,-1",
     ]
 
 

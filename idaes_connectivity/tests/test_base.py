@@ -42,6 +42,7 @@ def test_example_data(example_csv, example_mermaid, example_d2):
     ):
         # normalize ws and remove blank lines at end (if any)
         items = list_rstrip([t.rstrip() for t in text.split("\n")])
+        assert len(items) == len(ref)
         # compare line by line
         for i, item in enumerate(items):
             assert item == ref[i]

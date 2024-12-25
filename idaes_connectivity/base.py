@@ -53,7 +53,12 @@ _log = logging.getLogger(__name__)
 
 class ModelLoadError(Exception):
     def __init__(self, err):
-        super(f"Could not load model: {err}")
+        super().__init__(f"Could not load model: {err}")
+
+
+class DataLoadError(Exception):
+    def __init__(self, path, err):
+        super().__init__(f"Could not load from file '{path}': {err}")
 
 
 class Connectivity:
@@ -127,7 +132,10 @@ class Connectivity:
                 if model_flowsheet_attr == "":
                     flowsheet = input_model
                 else:
-                    flowsheet = getattr(input_model, model_flowsheet_attr)
+                    try:
+                        flowsheet = getattr(input_model, model_flowsheet_attr)
+                    except AttributeError as err:
+                        raise ModelLoadError(err)
                 self._load_model(flowsheet)
             elif input_file is not None or input_data is not None:
                 _log.info("[begin] load from file or data")
@@ -142,6 +150,8 @@ class Connectivity:
                 else:
                     self._header = input_data[0]
                     self._rows = input_data[1:]
+                if len(self._rows) == 0:
+                    raise DataLoadError(datafile.name, "Empty file")
                 _log.info("[end] load from file or data")
             else:
                 raise ValueError("No inputs provided")
@@ -409,17 +419,17 @@ class Mermaid(Formatter):
         for stream_abbr, values in self._conn.connections.items():
             stream_name = stream_name_map[stream_abbr]
             src, tgt = values[0], values[1]
-            if values[0] is not None and values[1] is not None:
+            if src is not None and tgt is not None:
                 if self._stream_labels:
                     label = self._clean_stream_label(stream_name)
                     connections.append(f"{src} --|{label}| -->{tgt}")
                 else:
                     connections.append(f"{src} --> {tgt}")
-            elif values[0] is not None:
+            elif src is not None:
                 connections.append(f"{src} --> {stream_abbr}")
                 show_streams.add(stream_abbr)
-            elif values[1] is not None:
-                connections.append(f" {stream_abbr} --> {tgt}")
+            elif tgt is not None:
+                connections.append(f"{stream_abbr} --> {tgt}")
                 show_streams.add(stream_abbr)
         return connections, show_streams
 

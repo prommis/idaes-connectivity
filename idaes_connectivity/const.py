@@ -28,4 +28,4 @@ class Direction(Enum):
     DOWN = 1
 
 
-AS_STRING = "-"
+CONSOLE = "-"

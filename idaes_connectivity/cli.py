@@ -20,7 +20,7 @@ import sys
 
 # package
 import idaes_connectivity.base as ic
-from idaes_connectivity.const import OutputFormats, AS_STRING
+from idaes_connectivity.const import OutputFormats, CONSOLE
 
 __author__ = "Dan Gunter (LBNL)"
 
@@ -29,11 +29,8 @@ SCRIPT_NAME = "idaes-conn"
 _log = logging.getLogger(SCRIPT_NAME)
 
 
-def _real_output_file(ifile: str, to_, input_file=None):
-    try:
-        to_fmt = OutputFormats(to_)
-    except ValueError:
-        raise ValueError(f"Bad format: {to_}")
+def infer_output_file(ifile: str, to_, input_file=None):
+    to_fmt = OutputFormats(to_)  # arg checked already
     ext = {
         OutputFormats.MERMAID: "mmd",
         OutputFormats.CSV: "csv",
@@ -57,11 +54,13 @@ def csv_main(args) -> int:
     Returns:
         int: Code for sys.exit()
     """
-    _log.info("[begin] create from matrix")
+    _log.info(f"[begin] create from matrix. args={args}")
 
     if args.ofile is None:
-        args.ofile = _real_output_file(args.source, args.to)
+        args.ofile = infer_output_file(args.source, args.to)
         print(f"Output in: {args.ofile}")
+    elif args.ofile == CONSOLE:
+        args.ofile = sys.stdout
 
     fmt_opt = {"stream_labels": args.labels, "direction": args.direction}
 
@@ -69,7 +68,7 @@ def csv_main(args) -> int:
         conn = ic.Connectivity(input_file=args.source)
         formatter = get_formatter(conn, args.to)
         formatter.write(args.ofile)
-    except Exception as err:
+    except (RuntimeError, ic.DataLoadError) as err:
         _log.info("[ end ] create from matrix (1)")
         _log.error(f"{err}")
         return 1
@@ -89,16 +88,20 @@ def module_main(args) -> int:
     """
     _log.info("[begin] create from Python model")
 
-    if args.ofile is None:
-        args.ofile = AS_STRING
+    if args.ofile is None or args.ofile == CONSOLE:
+        args.ofile = sys.stdout
 
     options = {"stream_labels": args.labels, "direction": args.direction}
-
+    conn_kw = {}
+    if args.fs:
+        conn_kw["model_flowsheet_attr"] = args.fs
+    if args.build:
+        conn_kw["model_build_func"] = args.build
     try:
-        conn = ic.Connectivity(input_module=args.source)
+        conn = ic.Connectivity(input_module=args.source, **conn_kw)
         formatter = get_formatter(conn, args.to, options)
         formatter.write(args.ofile)
-    except RuntimeError as err:
+    except (RuntimeError, ic.ModelLoadError) as err:
         _log.info("[ end ] create from Python model (1)")
         _log.error(f"{err}")
         return 1
