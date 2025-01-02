@@ -31,6 +31,9 @@ keywords = ["IDAES", "energy systems", "chemical engineering", "process modeling
 dynamic = ["version"]
 dependencies = [
     "pyomo >= 6.7.0",
+    "pydantic >= 2",
+    "idaes-pse >= 2.7.0"
+    
 ]
 [project.scripts]
 idaes-conn = "idaes_connectivity.cli:main"
