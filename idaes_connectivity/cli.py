@@ -1,3 +1,13 @@
+###############################################################################
+# PrOMMiS was produced under the DOE Process Optimization and Modeling
+# for Minerals Sustainability (“PrOMMiS”) initiative, and is
+# Copyright © 2024-2025 by the software owners: The Regents of the
+# University of California, through Lawrence Berkeley National
+# Laboratory, National Technology & Engineering Solutions of Sandia, LLC,
+# Carnegie Mellon University, West Virginia University Research
+# Corporation, University of Notre Dame, and Georgia Institute of
+# Technology. All rights reserved.
+###############################################################################
 """
 Command-line program
 """
@@ -5,25 +15,22 @@ Command-line program
 import argparse
 import logging
 from pathlib import Path
+import re
 import sys
 
 # package
-from idaes_connectivity.connectivity import create_from_matrix, create_from_model
-from idaes_connectivity.const import OutputFormats
+import idaes_connectivity.base as ic
+from idaes_connectivity.const import OutputFormats, CONSOLE
 
 __author__ = "Dan Gunter (LBNL)"
 
 
-AS_STRING = "-"
-SCRIPT_NAME = "connectivity"
+SCRIPT_NAME = "idaes-conn"
 _log = logging.getLogger(SCRIPT_NAME)
 
 
-def _real_output_file(ifile: str, to_, input_file=None):
-    try:
-        to_fmt = OutputFormats(to_)
-    except ValueError:
-        raise ValueError(f"Bad format: {to_}")
+def infer_output_file(ifile: str, to_, input_file=None):
+    to_fmt = OutputFormats(to_)  # arg checked already
     ext = {
         OutputFormats.MERMAID: "mmd",
         OutputFormats.CSV: "csv",
@@ -47,17 +54,21 @@ def csv_main(args) -> int:
     Returns:
         int: Code for sys.exit()
     """
-    _log.info("[begin] create from matrix")
+    _log.info(f"[begin] create from matrix. args={args}")
 
     if args.ofile is None:
-        args.ofile = _real_output_file(args.source, args.to)
+        args.ofile = infer_output_file(args.source, args.to)
         print(f"Output in: {args.ofile}")
+    elif args.ofile == CONSOLE:
+        args.ofile = sys.stdout
 
     fmt_opt = {"stream_labels": args.labels, "direction": args.direction}
 
     try:
-        create_from_matrix(args.source, args.ofile, args.to, formatter_options=fmt_opt)
-    except Exception as err:
+        conn = ic.Connectivity(input_file=args.source)
+        formatter = get_formatter(conn, args.to)
+        formatter.write(args.ofile)
+    except (RuntimeError, ic.DataLoadError) as err:
         _log.info("[ end ] create from matrix (1)")
         _log.error(f"{err}")
         return 1
@@ -77,27 +88,40 @@ def module_main(args) -> int:
     """
     _log.info("[begin] create from Python model")
 
-    if args.ofile is None:
-        args.ofile = AS_STRING
+    if args.ofile is None or args.ofile == CONSOLE:
+        args.ofile = sys.stdout
 
-    mermaid_options = {"stream_labels": args.labels, "direction": args.direction}
-
+    options = {"stream_labels": args.labels, "direction": args.direction}
+    conn_kw = {}
+    if args.fs is not None:
+        conn_kw["model_flowsheet_attr"] = args.fs
+    if args.build:
+        conn_kw["model_build_func"] = args.build
     try:
-        create_from_model(
-            module_name=args.source,
-            ofile=args.ofile,
-            to_format=args.to,
-            flowsheet_attr=args.fs,
-            build_func=args.build,
-            formatter_options=mermaid_options,
-        )
-    except RuntimeError as err:
+        conn = ic.Connectivity(input_module=args.source, **conn_kw)
+        formatter = get_formatter(conn, args.to, options)
+        formatter.write(args.ofile)
+    except (RuntimeError, ic.ModelLoadError) as err:
         _log.info("[ end ] create from Python model (1)")
         _log.error(f"{err}")
         return 1
     _log.info("[ end ] create from Python model")
 
     return 0
+
+
+def get_formatter(conn: object, fmt: str, options=None) -> ic.Formatter:
+    options = {} if options is None else options
+    fmt = fmt.lower().strip()
+    if fmt == OutputFormats.CSV.value:
+        clazz = ic.CSV
+    elif fmt == OutputFormats.D2.value:
+        clazz = ic.D2
+    elif fmt == OutputFormats.MERMAID.value:
+        clazz = ic.Mermaid
+    else:
+        raise ValueError(f"Unrecognized output format: {fmt}")
+    return clazz(conn, **options)
 
 
 USAGE = f"""
@@ -129,19 +153,12 @@ Example command-lines (showing the two modes):
     # Generate the connectivity matrix in uky_conn.csv
     {SCRIPT_NAME} prommis.uky.uky_flowsheet -O uky_conn.csv --to csv
 
-    # Generate the MermaidJS code wrapped in a HTML page that can be viewed in a
-    # browser without any further installation (MermaidJS is fetched from the network)
-    # The page will be called 'uky_conn.html' (since no filename was specified).
-    {SCRIPT_NAME} uky_conn.csv --to html
-
-    # Print the 'raw' MermaidJS code to the console instead of to a file
+    # Print the MermaidJS diagram to the console instead of to a file
     {SCRIPT_NAME}  uky_conn.csv --to mermaid --output-file "-"
 
-    # Print mermaid info to default file, with streams labeled
-    {SCRIPT_NAME} uky_conn.csv --to mermaid --labels
-    # (console)> Output in: uky_conn.mmd
-
-For more information about MermaidJS, see http://mermaid.js.org
+    # Print input for D2 to default file, with streams labeled
+    {SCRIPT_NAME} uky_conn.csv --to d2 --labels
+    # (console)> Output in: uky_conn.d2
 
 The connectivity matrix format is:
 
@@ -203,7 +220,7 @@ def main(command_line=None):
     # set nargs=? so --usage works without any other argument; though
     # this will require more checks later
     p.add_argument(
-        "source", help="Source data or module", metavar="FILE or MODULE", nargs="?"
+        "source", help="Source file or module", metavar="FILE or MODULE", nargs="?"
     )
     p.add_argument(
         "--type",
