@@ -91,6 +91,7 @@ class Connectivity:
         input_model=None,
         model_flowsheet_attr: str = "fs",
         model_build_func: str = "build",
+        unit_class=False,
     ):
         """Constructor.
 
@@ -111,12 +112,14 @@ class Connectivity:
                 use the model object as the flowsheet.
             model_build_func: Name of function in `input_module` to invoke to build
                 and return the model object.
+            unit_class: If true, add class name of unit to unit name as "<name>::<class>"
         """
         if units is not None and streams is not None and connections is not None:
             self.units = units
             self.streams = streams
             self.connections = connections
         else:
+            self._unit_class = unit_class
             if input_module is not None or input_model is not None:
                 if input_model is None:
                     try:
@@ -276,10 +279,11 @@ class Connectivity:
         self._header = ["Arcs"] + units
         self._rows = [[streams[i]] + r for i, r in enumerate(rows)]
 
-    @staticmethod
-    def _model_unit_name(block):
+    def _model_unit_name(self, block):
         """Get the unit name for a Pyomo/IDAES block."""
         name = block.getname()
+        if not self._unit_class:
+            return name
         class_name = block.__class__.__name__
         # extract last part of the name
         m = re.search(r"[a-zA-Z]\w+$", class_name)
@@ -507,5 +511,5 @@ class D2(Formatter):
     def _split_unit_name(n):
         parts = n.split("::", 1)
         if len(parts) == 1:
-            return None, n
+            return n, None
         return parts
