@@ -93,7 +93,7 @@ def module_main(args) -> int:
 
     options = {"stream_labels": args.labels, "direction": args.direction}
     conn_kw = {}
-    if args.fs:
+    if args.fs is not None:
         conn_kw["model_flowsheet_attr"] = args.fs
     if args.build:
         conn_kw["model_build_func"] = args.build
