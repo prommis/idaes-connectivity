@@ -1,3 +1,7 @@
+# ----
+# GitHub Actions for idaes-connectivity repository
+# Authors: Ludovico Bianchi, Michael Pesce, Dan Gunter (LBNL)
+# ----
 name: Checks
 on:
   push:
