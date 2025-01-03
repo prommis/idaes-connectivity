@@ -30,7 +30,7 @@ def example_d2():
         "direction: right",
         "Unit_B: M01 {",
         "  shape: image",
-        "  icon: /home/dang/.idaes/icon_shapes/mixer.svg",
+        "  icon: /home/<user>/.idaes/icon_shapes/mixer.svg",
         "}",
         "Unit_C: H02",
         "Unit_D: F03",
