@@ -426,7 +426,7 @@ class Mermaid(Formatter):
             if src is not None and tgt is not None:
                 if self._stream_labels:
                     label = self._clean_stream_label(stream_name)
-                    connections.append(f"{src} --|{label}| -->{tgt}")
+                    connections.append(f"{src} -- {label} -->{tgt}")
                 else:
                     connections.append(f"{src} --> {tgt}")
             elif src is not None:
