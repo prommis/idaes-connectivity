@@ -1,3 +1,6 @@
+![Checks](https://github.com/prommis/idaes-connectivity/actions/workflows/checks.yml/badge.svg)
+
+
 # IDAES Model Connectivity
 Tools to display connectivity within [IDAES](https://idaes.org) models.
 
