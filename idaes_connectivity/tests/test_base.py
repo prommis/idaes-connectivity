@@ -45,7 +45,11 @@ def test_example_data(example_csv, example_mermaid, example_d2):
         assert len(items) == len(ref)
         # compare line by line
         for i, item in enumerate(items):
-            assert item == ref[i]
+            # special processing for icon paths (which will differ)
+            if "icon:" in item:
+                assert "icon:" in ref[i]
+            else:
+                assert item == ref[i]
 
 
 def list_rstrip(x: List) -> List:
