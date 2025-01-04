@@ -21,6 +21,8 @@ import sys
 # package
 import idaes_connectivity.base as ic
 from idaes_connectivity.const import OutputFormats, CONSOLE
+from idaes_connectivity.version import VERSION
+
 
 __author__ = "Dan Gunter (LBNL)"
 
@@ -263,11 +265,17 @@ def main(command_line=None):
         choices=("LR", "TD"),
         default="LR",
     )
+    p.add_argument(
+        "--version", help="Print version number and quit", action="store_true"
+    )
     _add_log_options(p)
     if command_line:
         args = p.parse_args(args=command_line)
     else:
         args = p.parse_args()
+    if args.version:
+        print(VERSION)
+        return 0
     if args.usage:
         print(USAGE)
         return 0
