@@ -39,8 +39,6 @@ except ImportError as err:
     pyomo = None
     warnings.warn(f"Could not import pyomo: {err}")
 
-from idaes.core import UnitModelBlockData
-
 # package
 from idaes_connectivity.util import IdaesPaths, UnitIcon
 from idaes_connectivity.const import Direction
