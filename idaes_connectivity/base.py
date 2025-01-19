@@ -60,7 +60,10 @@ class DataLoadError(Exception):
 
 
 class Connectivity:
-    """Connectivity of a model
+    """Represent connectivity of a Pyomo/IDAES model.
+
+    Once built, the connectivity is represented by
+    three attributes, `units`, `streams`, and `connections`.
 
     Attributes:
         units (dict): Dictionary with keys being the unit name (in the model instance) and
@@ -91,12 +94,11 @@ class Connectivity:
         model_build_func: str = "build",
         unit_class=False,
     ):
-        """Constructor.
+        """Create from existing data or one of the valid input types.
 
         Either all three of units, streams, and connections must be given OR
         one of the `input_*` arguments must not be None. They will be looked
-        at in the order `input_file` then `input_data` and the first one that is
-        not None will be used.
+        at in the order: model, module, file, data.
 
         Args:
             units: See attributes description
@@ -107,10 +109,14 @@ class Connectivity:
             input_module: Module from which to load model
             input_model: Existing model object
             model_flowsheet_attr: Attribute on model object with flowsheet. If empty,
-                use the model object as the flowsheet.
+                                  use the model object as the flowsheet.
             model_build_func: Name of function in `input_module` to invoke to build
-                and return the model object.
+                              and return the model object.
             unit_class: If true, add class name of unit to unit name as "<name>::<class>"
+
+        Raises:
+            ModelLoadError: Couldn't load the model/module
+            ValueError: Invalid inputs
         """
         if units is not None and streams is not None and connections is not None:
             self.units = units
