@@ -13,15 +13,15 @@ kernelspec:
 ---
 # Python API
 
-The Python API is contained in the {py:mod}`idaes_connectivity.base` module.
+The Python API is contained in the *idaes_connectivity.base* module.
 The basic workflow is:
-- Create an instance of the [Connectivity](connectivity-class) class from a model.
-- Format the connectivity information with one of the subclasses of the [Formatter](formatter-classes) class, writing to a file
+* Create an instance of the [Connectivity](connectivity-class) class from a model.
+* Format the connectivity information with one of the subclasses of the [Formatter](formatter-classes) class, writing to a file
 or returning the value as a string.
-- Optionally, show the results with an external tool:
-  - For CSV tables, view as text or in Excel
-  - For text-based diagrams, run the appropriate program
-    to create the diagram from the output text.
+  - You can output CSV for viewing in a text editor or spreadsheet program.
+  - You can also output a text-based diagram specification for viewing in a tool such as Mermaid or D2. Find more details on the [diagrams](diagrams.md) page.
+
+The rest of this page documents the [Connectivity](connectivity-class) and [Formatter](formatter-classes) classes and then provides some [extended examples](api-examples) of API usage.
 
 (connectivity-class)=
 ## Model connectivity
@@ -36,3 +36,5 @@ The `Connectivity` class represents the connectivity of the model.
 (formatter-classes)=
 ## Formatters
 
+(api-examples)=
+## Examples
