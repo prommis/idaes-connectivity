@@ -3,7 +3,7 @@
 
 title: IDAES Connectivity Tool
 author: The PrOMMiS Project
-logo: prommis-logo.png
+logo: idaes-conn_logo.svg
 
 # Force re-execution of notebooks on each build.
 # See https://jupyterbook.org/content/execute.html
