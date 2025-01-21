@@ -302,8 +302,10 @@ class Formatter(abc.ABC):
     more easily visualized or processed by other tools.
     """
 
-    def __init__(self, connectivity: Connectivity, direction: str = None, **kwargs):
+    def __init__(self, connectivity: Connectivity, **kwargs):
         self._conn = connectivity
+
+    def _set_direction(self, direction):
         if direction is None:
             self._direction = Direction.RIGHT
         else:
@@ -322,6 +324,16 @@ class Formatter(abc.ABC):
         self,
         output_file: Union[str, TextIO, None],
     ) -> Optional[str]:
+        """Write the formatted output.
+
+        Args:
+            output_file: The output file. It can be a filename or file object.
+                         The special value `None` means return the text as a string.
+
+        Returns:
+            If `None` was given as the *output_file*, return the text as a string.
+            Otherwise, return None.
+        """
         pass
 
     def _write_return(self, f):
@@ -364,11 +376,24 @@ class Mermaid(Formatter):
     def __init__(
         self,
         connectivity: Connectivity,
+        direction: str = None,
         stream_labels: bool = False,
         indent="   ",
         **kwargs,
     ):
+        """Constructor.
+
+        Args:
+            connectivity (Connectivity): Model connectivity
+            direction (str, optional): Diagram direction. If None, do left to right.
+            stream_labels (bool, optional): If true, add stream labels.
+            indent (str, optional): Indent (spaces) in output text.
+
+        Raises:
+            RuntimeError: Invalid `direction` argument.
+        """
         super().__init__(connectivity, **kwargs)
+        self._set_direction(direction)
         self.indent = indent
         self._stream_labels = stream_labels
         if self._direction == Direction.RIGHT:
@@ -379,18 +404,7 @@ class Mermaid(Formatter):
             raise RuntimeError(f"Unknown parsed direction '{self._direction}'")
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
-        """Write Mermaid (plain or encapsulated) file
-
-        Args:
-            output_file (Union[str, TextIO, None]): Output file object, filename,
-               or None meaning return a string
-
-        Raises:
-            ValueError: This output format is not handled (e.g., CSV)
-
-        Returns:
-            str | None: If `output_file` was None then return output as a string, otherwise None
-        """
+        """Write Mermaid text description."""
         f = self._get_output_stream(output_file)
         self._body(f)
         return self._write_return(f)
@@ -458,9 +472,25 @@ class D2(Formatter):
     """
 
     def __init__(
-        self, connectivity: Connectivity, stream_labels: bool = False, **kwargs
+        self,
+        connectivity: Connectivity,
+        direction: str = None,
+        stream_labels: bool = False,
+        **kwargs,
     ):
+        """Constructor.
+
+        Args:
+            connectivity (Connectivity): Model connectivity
+            direction (str, optional): Diagram direction. If None, do left to right.
+            stream_labels (bool, optional): If true, add stream labels.
+            indent (str, optional): Indent (spaces) in output text.
+
+        Raises:
+            RuntimeError: Invalid `direction` argument.
+        """
         super().__init__(connectivity, **kwargs)
+        self._set_direction(direction)
         self._labels = stream_labels
         if self._direction == Direction.RIGHT:
             self._d2_dir = "right"
@@ -470,6 +500,7 @@ class D2(Formatter):
             raise RuntimeError(f"Unknown parsed direction '{self._direction}'")
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
+        """Write D2 text description."""
         unit_icon = UnitIcon(IdaesPaths().icons)
         feed_num, sink_num = 1, 1
         f = self._get_output_stream(output_file)
