@@ -122,6 +122,18 @@ The Mermaid formatter writes out a Mermaid text description.
   :members: __init__, write
 ```
 
+#### Jupyter
+
+Mermaid is supported by newer versions of Jupyter Notebooks and Jupyter Lab.
+The *display_connectivity* function allows one to easily display a diagram in a Jupyter notebook.
+This function is also shown in the [Jupyter Notebook example](./example.md).
+
+```{eval-rst}
+.. autofunction:: idaes_connectivity.jupyter.display_connectivity
+```
+
+This function
+
 ### D2 formatter
 
 The D2 formatter writes out a D2 text description.
