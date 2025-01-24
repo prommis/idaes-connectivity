@@ -39,8 +39,6 @@ except ImportError as err:
     pyomo = None
     warnings.warn(f"Could not import pyomo: {err}")
 
-from idaes.core import UnitModelBlockData
-
 # package
 from idaes_connectivity.util import IdaesPaths, UnitIcon
 from idaes_connectivity.const import Direction
@@ -62,7 +60,10 @@ class DataLoadError(Exception):
 
 
 class Connectivity:
-    """Connectivity of a model
+    """Represent connectivity of a Pyomo/IDAES model.
+
+    Once built, the connectivity is represented by
+    three attributes, `units`, `streams`, and `connections`.
 
     Attributes:
         units (dict): Dictionary with keys being the unit name (in the model instance) and
@@ -93,12 +94,11 @@ class Connectivity:
         model_build_func: str = "build",
         unit_class=False,
     ):
-        """Constructor.
+        """Create from existing data or one of the valid input types.
 
         Either all three of units, streams, and connections must be given OR
         one of the `input_*` arguments must not be None. They will be looked
-        at in the order `input_file` then `input_data` and the first one that is
-        not None will be used.
+        at in the order: model, module, file, data.
 
         Args:
             units: See attributes description
@@ -109,10 +109,14 @@ class Connectivity:
             input_module: Module from which to load model
             input_model: Existing model object
             model_flowsheet_attr: Attribute on model object with flowsheet. If empty,
-                use the model object as the flowsheet.
+                                  use the model object as the flowsheet.
             model_build_func: Name of function in `input_module` to invoke to build
-                and return the model object.
+                              and return the model object.
             unit_class: If true, add class name of unit to unit name as "<name>::<class>"
+
+        Raises:
+            ModelLoadError: Couldn't load the model/module
+            ValueError: Invalid inputs
         """
         if units is not None and streams is not None and connections is not None:
             self.units = units
@@ -298,8 +302,10 @@ class Formatter(abc.ABC):
     more easily visualized or processed by other tools.
     """
 
-    def __init__(self, connectivity: Connectivity, direction: str = None, **kwargs):
+    def __init__(self, connectivity: Connectivity, **kwargs):
         self._conn = connectivity
+
+    def _set_direction(self, direction):
         if direction is None:
             self._direction = Direction.RIGHT
         else:
@@ -318,6 +324,16 @@ class Formatter(abc.ABC):
         self,
         output_file: Union[str, TextIO, None],
     ) -> Optional[str]:
+        """Write the formatted output.
+
+        Args:
+            output_file: The output file. It can be a filename or file object.
+                         The special value `None` means return the text as a string.
+
+        Returns:
+            If `None` was given as the *output_file*, return the text as a string.
+            Otherwise, return None.
+        """
         pass
 
     def _write_return(self, f):
@@ -360,11 +376,24 @@ class Mermaid(Formatter):
     def __init__(
         self,
         connectivity: Connectivity,
+        direction: str = None,
         stream_labels: bool = False,
         indent="   ",
         **kwargs,
     ):
+        """Constructor.
+
+        Args:
+            connectivity (Connectivity): Model connectivity
+            direction (str, optional): Diagram direction. If None, do left to right.
+            stream_labels (bool, optional): If true, add stream labels.
+            indent (str, optional): Indent (spaces) in output text.
+
+        Raises:
+            RuntimeError: Invalid `direction` argument.
+        """
         super().__init__(connectivity, **kwargs)
+        self._set_direction(direction)
         self.indent = indent
         self._stream_labels = stream_labels
         if self._direction == Direction.RIGHT:
@@ -375,18 +404,7 @@ class Mermaid(Formatter):
             raise RuntimeError(f"Unknown parsed direction '{self._direction}'")
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
-        """Write Mermaid (plain or encapsulated) file
-
-        Args:
-            output_file (Union[str, TextIO, None]): Output file object, filename,
-               or None meaning return a string
-
-        Raises:
-            ValueError: This output format is not handled (e.g., CSV)
-
-        Returns:
-            str | None: If `output_file` was None then return output as a string, otherwise None
-        """
+        """Write Mermaid text description."""
         f = self._get_output_stream(output_file)
         self._body(f)
         return self._write_return(f)
@@ -454,9 +472,25 @@ class D2(Formatter):
     """
 
     def __init__(
-        self, connectivity: Connectivity, stream_labels: bool = False, **kwargs
+        self,
+        connectivity: Connectivity,
+        direction: str = None,
+        stream_labels: bool = False,
+        **kwargs,
     ):
+        """Constructor.
+
+        Args:
+            connectivity (Connectivity): Model connectivity
+            direction (str, optional): Diagram direction. If None, do left to right.
+            stream_labels (bool, optional): If true, add stream labels.
+            indent (str, optional): Indent (spaces) in output text.
+
+        Raises:
+            RuntimeError: Invalid `direction` argument.
+        """
         super().__init__(connectivity, **kwargs)
+        self._set_direction(direction)
         self._labels = stream_labels
         if self._direction == Direction.RIGHT:
             self._d2_dir = "right"
@@ -466,6 +500,7 @@ class D2(Formatter):
             raise RuntimeError(f"Unknown parsed direction '{self._direction}'")
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
+        """Write D2 text description."""
         unit_icon = UnitIcon(IdaesPaths().icons)
         feed_num, sink_num = 1, 1
         f = self._get_output_stream(output_file)
