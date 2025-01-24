@@ -4,6 +4,7 @@
 title: IDAES Connectivity Tool
 author: The PrOMMiS Project
 logo: idaes-conn_logo.svg
+copyright: "2024 - 2025"
 
 # Force re-execution of notebooks on each build.
 # See https://jupyterbook.org/content/execute.html
