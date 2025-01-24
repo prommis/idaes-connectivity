@@ -6,4 +6,4 @@
 # IDAES Model Connectivity
 Tools to display connectivity within [IDAES](https://idaes.org) models.
 
-![Documentation](https://prommis.github.io/idaes-connectivity/)
+[Documentation](https://prommis.github.io/idaes-connectivity/)
