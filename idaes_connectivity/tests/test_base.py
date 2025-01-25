@@ -33,7 +33,7 @@ _1, _2, _3 = example_csv, example_d2, example_mermaid
 @pytest.mark.unit
 def test_example_data(example_csv, example_mermaid, example_d2):
     model = example_flowsheet.build()
-    conn = Connectivity(input_model=model, unit_class=True)
+    conn = Connectivity(input_model=model.fs, unit_class=True)
     # loop over each output format
     for text, ref in (
         (CSV(conn).write(None), example_csv),

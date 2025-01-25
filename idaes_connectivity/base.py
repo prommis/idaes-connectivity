@@ -90,7 +90,7 @@ class Connectivity:
         input_data: List[List[Union[str, int]]] = None,
         input_module: str = None,
         input_model=None,
-        model_flowsheet_attr: str = "fs",
+        model_flowsheet_attr: str = "",
         model_build_func: str = "build",
         unit_class=False,
     ):
