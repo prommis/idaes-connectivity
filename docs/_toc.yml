@@ -9,4 +9,5 @@ chapters:
 - file: api
 - file: cli
 - file: diagrams
+- file: mermaid_in_jupyter
 - file: copyright
