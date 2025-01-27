@@ -78,7 +78,10 @@ class Connectivity:
             Thus each item in this dict describes an arc, or a line in a diagram,
             with a stream connecting two units (usual case) or coming into or out of
             a unit as an unconnected feed or outlet for the flowsheet (possible).
-
+        stream_values (dict): Dictionary with keys being the stream name (in the model instance) and
+            values being a dict of key/value pairs, to be associated with this stream.
+        unit_values (dict): Dictionary with keys being the unit name (in the model instance) and
+            values being a dict of key/value pairs, to be associated with this unit.
     """
 
     def __init__(
@@ -118,6 +121,7 @@ class Connectivity:
             ModelLoadError: Couldn't load the model/module
             ValueError: Invalid inputs
         """
+        self.stream_values, self.unit_values = {}, {}
         if units is not None and streams is not None and connections is not None:
             self.units = units
             self.streams = streams
