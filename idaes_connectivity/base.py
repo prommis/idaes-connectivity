@@ -19,6 +19,7 @@ in various formats.
 
 import abc
 import argparse
+from collections.abc import MutableMapping
 import csv
 from dataclasses import dataclass, field
 import enum
@@ -59,6 +60,11 @@ class DataLoadError(Exception):
         super().__init__(f"Could not load from file '{path}': {err}")
 
 
+class ValueContainer:
+    def __init__(self, obj):
+        self.value = obj
+
+
 class Connectivity:
     """Represent connectivity of a Pyomo/IDAES model.
 
@@ -78,10 +84,6 @@ class Connectivity:
             Thus each item in this dict describes an arc, or a line in a diagram,
             with a stream connecting two units (usual case) or coming into or out of
             a unit as an unconnected feed or outlet for the flowsheet (possible).
-        stream_values (dict): Dictionary with keys being the stream name (in the model instance) and
-            values being a dict of key/value pairs, to be associated with this stream.
-        unit_values (dict): Dictionary with keys being the unit name (in the model instance) and
-            values being a dict of key/value pairs, to be associated with this unit.
     """
 
     def __init__(
@@ -121,7 +123,6 @@ class Connectivity:
             ModelLoadError: Couldn't load the model/module
             ValueError: Invalid inputs
         """
-        self.stream_values, self.unit_values = {}, {}
         if units is not None and streams is not None and connections is not None:
             self.units = units
             self.streams = streams
@@ -167,8 +168,45 @@ class Connectivity:
             else:
                 raise ValueError("No inputs provided")
             self.units = self._build_units()
+            self._unit_values = {k: {} for k in self.units}
+            self._unit_values_changed, self._reified_unit_values = False, {}
             self.streams = self._build_streams()
+            self._stream_values = {k: {} for k in self.streams}
+            self._stream_values_changed, self._reified_stream_values = False, {}
             self.connections = self._build_connections()
+
+    def set_stream_value(self, stream_name: str, key: str, value):
+        if stream_name not in self._stream_values:
+            raise KeyError(f"No stream with name '{stream_name}'")
+        values = self._stream_values[stream_name]
+        values[key] = value if hasattr(value, "value") else ValueContainer(value)
+        self._stream_values_changed = True
+
+    def set_unit_value(self, unit_name: str, key: str, value):
+        if unit_name not in self._unit_values:
+            raise KeyError(f"No unit with name '{unit_name}'")
+        values = self._unit_values[unit_name]
+        values[key] = value if hasattr(value, "value") else ValueContainer(value)
+
+    @property
+    def stream_values(self):
+        if self._stream_values_changed:
+            self._reified_stream_values = {
+                k1: {k2: v2.value for k2, v2 in v1.items()}
+                for k1, v1 in self._stream_values.items()
+            }
+            self._stream_values_changed = False
+        return self._reified_stream_values
+
+    @property
+    def unit_values(self):
+        if self._unit_values_changed:
+            self._reified_unit_values = {
+                k1: {k2: v2.value for k2, v2 in v1.items()}
+                for k1, v1 in self._unit_values.items()
+            }
+            self._unit_values_changed = False
+        return self._reified_unit_values
 
     def as_table(self) -> List[List[str]]:
         rows = [self._header.copy()]
@@ -382,6 +420,7 @@ class Mermaid(Formatter):
         connectivity: Connectivity,
         direction: str = None,
         stream_labels: bool = False,
+        stream_values: bool = False,
         indent="   ",
         **kwargs,
     ):
@@ -391,12 +430,16 @@ class Mermaid(Formatter):
             connectivity (Connectivity): Model connectivity
             direction (str, optional): Diagram direction. If None, do left to right.
             stream_labels (bool, optional): If true, add stream labels.
+            stream_values (bool, optional): If True, show stream values
             indent (str, optional): Indent (spaces) in output text.
 
         Raises:
             RuntimeError: Invalid `direction` argument.
         """
         super().__init__(connectivity, **kwargs)
+        self._show_stream_values = stream_values
+        if stream_values:
+            self._streams_with_values = set()
         self._set_direction(direction)
         self.indent = indent
         self._stream_labels = stream_labels
@@ -416,6 +459,25 @@ class Mermaid(Formatter):
     def _body(self, outfile):
         i = self.indent
         outfile.write(f"flowchart {self._mm_dir}\n")
+        # Stream values
+        if self._show_stream_values:
+            outfile.write(
+                f"{i}classDef streamval fill:#fff,stroke:#666,stroke-width:1px,font-size:80%;\n"
+            )
+            for name, values in self._conn.stream_values.items():
+                if values:
+                    abbr = self._conn.streams[name]
+                    sv_name = f"{abbr}_V"
+                    sv_text = self._format_values(values)
+                    if self._stream_labels:
+                        # md_name = name.replace("_", " ")
+                        # sv_text = f"*{md_name}*\n" + sv_text
+                        sv_text = f"{name}\n" + sv_text
+                    # outfile.write(f'{i}{sv_name}["`{sv_text}`"]\n')
+                    outfile.write(f'{i}{sv_name}("{sv_text}")\n')
+                    self._streams_with_values.add(sv_name)
+            all_streams = ",".join(self._streams_with_values)
+            outfile.write(f"{i}class {all_streams} streamval;\n")
         # Get connections first, so we know which streams to show
         connections, show_streams = self._get_connections()
         # Units
@@ -428,6 +490,13 @@ class Mermaid(Formatter):
         # Connections
         for s in connections:
             outfile.write(f"{i}{s}\n")
+
+    @staticmethod
+    def _format_values(data):
+        text_list = []
+        for k, v in data.items():
+            text_list.append(f"{k} = {v}")
+        return "\n".join(text_list)
 
     def _get_mermaid_units(self):
         for name, abbr in self._conn.units.items():
@@ -446,7 +515,14 @@ class Mermaid(Formatter):
             stream_name = stream_name_map[stream_abbr]
             src, tgt = values[0], values[1]
             if src is not None and tgt is not None:
-                if self._stream_labels:
+                if self._show_stream_values:
+                    sv_name = f"{stream_abbr}_V"
+                    if sv_name in self._streams_with_values:
+                        connections.append(f"{src} --- {sv_name}")
+                        connections.append(f"{sv_name} --> {tgt}")
+                    else:
+                        connections.append(f"{src} --> {tgt}")
+                elif self._stream_labels:
                     label = self._clean_stream_label(stream_name)
                     connections.append(f"{src} -- {label} -->{tgt}")
                 else:
