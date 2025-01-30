@@ -16,11 +16,11 @@ def example_csv():
 def example_mermaid():
     return [
         "flowchart LR",
-        "   Unit_B[M01::ScalarMixer]",
-        "   Unit_C[H02::ScalarHeater]",
-        "   Unit_D[F03::ScalarFlash]",
-        "   Unit_B --> Unit_C",
-        "   Unit_C --> Unit_D",
+        "    Unit_B[M01::ScalarMixer]",
+        "    Unit_C[H02::ScalarHeater]",
+        "    Unit_D[F03::ScalarFlash]",
+        "    Unit_B --> Unit_C",
+        "    Unit_C --> Unit_D",
     ]
 
 

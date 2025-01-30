@@ -344,22 +344,20 @@ class Formatter(abc.ABC):
     more easily visualized or processed by other tools.
     """
 
+    defaults = {}  # extend in subclasses
+
     def __init__(self, connectivity: Connectivity, **kwargs):
         self._conn = connectivity
 
-    def _set_direction(self, direction):
-        if direction is None:
-            self._direction = Direction.RIGHT
-        else:
-            self._parse_direction(direction)
-
-    def _parse_direction(self, d):
+    @staticmethod
+    def _parse_direction(d):
+        if not hasattr(d, "lower"):
+            raise ValueError(f"Direction '{d}' must be a string")
         if d.lower() == "lr":
-            self._direction = Direction.RIGHT
+            return Direction.RIGHT
         elif d.lower() == "td":
-            self._direction = Direction.DOWN
-        else:
-            raise ValueError(f"Direction '{d}' not recognized")
+            return Direction.DOWN
+        raise ValueError(f"Direction '{d}' not recognized")
 
     @abc.abstractmethod
     def write(
@@ -396,6 +394,12 @@ class Formatter(abc.ABC):
             f = open(output_file, "w")
         return f
 
+    @classmethod
+    def _use_defaults(cls, kwargs):
+        for k, v in cls.defaults.items():
+            if k not in kwargs or kwargs[k] is None:
+                kwargs[k] = v
+
 
 class CSV(Formatter):
     """Write out the data as CSV."""
@@ -415,40 +419,46 @@ class Mermaid(Formatter):
     See https://mermaid.js.org/
     """
 
-    def __init__(
-        self,
-        connectivity: Connectivity,
-        direction: str = None,
-        stream_labels: bool = False,
-        stream_values: bool = False,
-        indent="   ",
-        **kwargs,
-    ):
-        """Constructor.
+    #: Default values.
+    #  Use these values if no value is given to the
+    #: corresponding keyword in the constructor.
+    #: For example::
+    #:
+    #:   Mermaid.defaults.update(dict(stream_labels=True, stream_values=True))
+    #:
+    #: direction (str): Diagram direction
+    #: stream_labels (bool): If true, add stream labels
+    #: stream_values (bool): If True, show stream values
+    #: unit_values (bool): If True, show unit values
+    #: indent (str): Indent (spaces) in output text
+
+    defaults = {
+        "direction": "LR",
+        "stream_labels": False,
+        "stream_values": False,
+        "unit_values": False,
+        "indent": "    ",
+    }
+
+    def __init__(self, connectivity: Connectivity, **kwargs):
+        """Constructor. See class `defaults` for default values.
 
         Args:
             connectivity (Connectivity): Model connectivity
-            direction (str, optional): Diagram direction. If None, do left to right.
-            stream_labels (bool, optional): If true, add stream labels.
-            stream_values (bool, optional): If True, show stream values
-            indent (str, optional): Indent (spaces) in output text.
+            kwargs (dict): See `Mermaid.defaults` for keywords
 
         Raises:
-            RuntimeError: Invalid `direction` argument.
+            ValueError: Invalid `direction` argument.
         """
         super().__init__(connectivity, **kwargs)
-        self._show_stream_values = stream_values
-        if stream_values:
+        self._use_defaults(kwargs)
+        self.indent = kwargs["indent"]
+        self._stream_labels = kwargs["stream_labels"]
+        self._stream_values = kwargs["stream_values"]
+        self._unit_values = kwargs["unit_values"]
+        self._direction = self._parse_direction(kwargs["direction"])
+        if self._stream_values:
             self._streams_with_values = set()
-        self._set_direction(direction)
-        self.indent = indent
-        self._stream_labels = stream_labels
-        if self._direction == Direction.RIGHT:
-            self._mm_dir = "LR"
-        elif self._direction == Direction.DOWN:
-            self._mm_dir = "TD"
-        else:
-            raise RuntimeError(f"Unknown parsed direction '{self._direction}'")
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
         """Write Mermaid text description."""
@@ -458,9 +468,10 @@ class Mermaid(Formatter):
 
     def _body(self, outfile):
         i = self.indent
-        outfile.write(f"flowchart {self._mm_dir}\n")
+        mm_dir = "LR" if self._direction == Direction.RIGHT else "TD"
+        outfile.write(f"flowchart {mm_dir}\n")
         # Stream values
-        if self._show_stream_values:
+        if self._stream_values:
             outfile.write(
                 f"{i}classDef streamval fill:#fff,stroke:#666,stroke-width:1px,font-size:80%;\n"
             )
@@ -470,15 +481,12 @@ class Mermaid(Formatter):
                     sv_name = f"{abbr}_V"
                     sv_text = self._format_values(values)
                     if self._stream_labels:
-                        # md_name = name.replace("_", " ")
-                        # sv_text = f"*{md_name}*\n" + sv_text
                         sv_text = f"{name}\n" + sv_text
-                    # outfile.write(f'{i}{sv_name}["`{sv_text}`"]\n')
                     outfile.write(f'{i}{sv_name}("{sv_text}")\n')
                     self._streams_with_values.add(sv_name)
             all_streams = ",".join(self._streams_with_values)
             outfile.write(f"{i}class {all_streams} streamval;\n")
-        # Get connections first, so we know which streams to show
+        # Get connections and which streams to show
         connections, show_streams = self._get_connections()
         # Units
         for s in self._get_mermaid_units():
@@ -515,7 +523,7 @@ class Mermaid(Formatter):
             stream_name = stream_name_map[stream_abbr]
             src, tgt = values[0], values[1]
             if src is not None and tgt is not None:
-                if self._show_stream_values:
+                if self._stream_values:
                     sv_name = f"{stream_abbr}_V"
                     if sv_name in self._streams_with_values:
                         connections.append(f"{src} --- {sv_name}")
@@ -551,40 +559,54 @@ class D2(Formatter):
     See https://d2lang.com
     """
 
+    #: Default values.
+    #  Use these values if no value is given to the
+    #: corresponding keyword in the constructor.
+    #: For example::
+    #:
+    #:   Mermaid.defaults.update(dict(stream_labels=True, stream_values=True))
+    #:
+    #: direction (str): Diagram direction
+    #: stream_labels (bool): If true, add stream labels
+    #: stream_values (bool): If True, show stream values
+    #: unit_values (bool): If True, show unit values
+    #: indent (str): Indent (spaces) in output text
+
+    defaults = {
+        "direction": "LR",
+        "stream_labels": False,
+        "stream_values": False,
+        "unit_values": False,
+    }
+
     def __init__(
         self,
         connectivity: Connectivity,
-        direction: str = None,
-        stream_labels: bool = False,
         **kwargs,
     ):
         """Constructor.
 
         Args:
             connectivity (Connectivity): Model connectivity
-            direction (str, optional): Diagram direction. If None, do left to right.
-            stream_labels (bool, optional): If true, add stream labels.
-            indent (str, optional): Indent (spaces) in output text.
+            kwargs (dict): See `D2.defaults` for keywords
 
         Raises:
-            RuntimeError: Invalid `direction` argument.
+            ValueError: Invalid direction.
         """
         super().__init__(connectivity, **kwargs)
-        self._set_direction(direction)
-        self._labels = stream_labels
-        if self._direction == Direction.RIGHT:
-            self._d2_dir = "right"
-        elif self._direction == Direction.DOWN:
-            self._d2_dir = "down"
-        else:
-            raise RuntimeError(f"Unknown parsed direction '{self._direction}'")
+        self._use_defaults(kwargs)
+        self._stream_labels = kwargs["stream_labels"]
+        self._stream_values = kwargs["stream_values"]
+        self._unit_values = kwargs["unit_values"]
+        self._direction = self._parse_direction(kwargs["direction"])
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
         """Write D2 text description."""
         unit_icon = UnitIcon(IdaesPaths().icons)
         feed_num, sink_num = 1, 1
         f = self._get_output_stream(output_file)
-        f.write(f"direction: {self._d2_dir}\n")
+        d2_dir = "right" if self._direction == Direction.RIGHT else "down"
+        f.write(f"direction: {d2_dir}\n")
         for unit_name, unit_abbr in self._conn.units.items():
             unit_str, unit_type = self._split_unit_name(unit_name)
             image_file = None if unit_type is None else unit_icon.get_icon(unit_type)
@@ -603,20 +625,20 @@ class D2(Formatter):
             if conns[0] is None:
                 f.write(f"f{feed_num}: Feed {feed_num}\n")
                 f.write(f"f{feed_num} -> {conns[1]}")
-                if self._labels:
+                if self._stream_labels:
                     f.write(f": {stream_name}")
                 f.write("\n")
                 feed_num += 1
             elif conns[1] is None:
                 f.write(f"s{sink_num}: Sink {sink_num}\n")
                 f.write(f"f{sink_num} -> {conns[1]}")
-                if self._labels:
+                if self._stream_labels:
                     f.write(f": {stream_name}")
                 f.write("\n")
                 sink_num += 1
             else:
                 f.write(f"{conns[0]} -> {conns[1]}")
-                if self._labels:
+                if self._stream_labels:
                     f.write(f": {stream_name}")
                 f.write("\n")
 

@@ -35,11 +35,12 @@ def test_example_data(example_csv, example_mermaid, example_d2):
     model = example_flowsheet.build()
     conn = Connectivity(input_model=model.fs, unit_class=True)
     # loop over each output format
-    for text, ref in (
-        (CSV(conn).write(None), example_csv),
-        (Mermaid(conn).write(None), example_mermaid),
-        (D2(conn).write(None), example_d2),
+    for name, text, ref in (
+        ("CSV", CSV(conn).write(None), example_csv),
+        ("Mermaid", Mermaid(conn).write(None), example_mermaid),
+        ("D2", D2(conn).write(None), example_d2),
     ):
+        print(f"@ Start {name}")
         # normalize ws and remove blank lines at end (if any)
         items = list_rstrip([t.rstrip() for t in text.split("\n")])
         assert len(items) == len(ref)
@@ -50,6 +51,7 @@ def test_example_data(example_csv, example_mermaid, example_d2):
                 assert "icon:" in ref[i]
             else:
                 assert item == ref[i]
+        print(f"@ End   {name}")
 
 
 def list_rstrip(x: List) -> List:
@@ -58,3 +60,24 @@ def list_rstrip(x: List) -> List:
     while i > -1 and len(x[i]) == 0:
         i -= 1
     return x[: i + 1]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("klass", (Mermaid, D2))
+def test_defaults_formatters(klass):
+    model = example_flowsheet.build()
+    conn = Connectivity(input_model=model.fs, unit_class=True)
+
+    klass.defaults["stream_labels"] = True
+
+    # not given (use default)
+    fmt = klass(conn)
+    assert fmt._stream_labels == True
+
+    # given, but None (use default)
+    fmt = klass(conn, stream_labels=None)
+    assert fmt._stream_labels == True
+
+    # different value (use value)
+    fmt = klass(conn, stream_labels=False)
+    assert fmt._stream_labels == False
