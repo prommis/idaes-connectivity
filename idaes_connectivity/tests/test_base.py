@@ -29,11 +29,19 @@ from idaes_connectivity.tests.example_flowsheet_data import (
 # avoid warnings about unused imports
 _1, _2, _3 = example_csv, example_d2, example_mermaid
 
+# Constants
+STREAM_1 = "s01"
+
+
+def setup():
+    model = example_flowsheet.build()
+    conn = Connectivity(input_model=model.fs, unit_class=True)
+    return model, conn
+
 
 @pytest.mark.unit
 def test_example_data(example_csv, example_mermaid, example_d2):
-    model = example_flowsheet.build()
-    conn = Connectivity(input_model=model.fs, unit_class=True)
+    model, conn = setup()
     # loop over each output format
     for name, text, ref in (
         ("CSV", CSV(conn).write(None), example_csv),
@@ -65,8 +73,7 @@ def list_rstrip(x: List) -> List:
 @pytest.mark.unit
 @pytest.mark.parametrize("klass", (Mermaid, D2))
 def test_defaults_formatters(klass):
-    model = example_flowsheet.build()
-    conn = Connectivity(input_model=model.fs, unit_class=True)
+    _, conn = setup()
 
     klass.defaults["stream_labels"] = True
 
@@ -81,3 +88,21 @@ def test_defaults_formatters(klass):
     # different value (use value)
     fmt = klass(conn, stream_labels=False)
     assert fmt._stream_labels == False
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("klass", (Mermaid, D2))
+def test_stream_values_formatter(klass):
+    _, conn = setup()
+    test_key, test_val = "test_value", 123
+    conn.set_stream_value(STREAM_1, test_key, test_val)
+    found_key = False
+    for stream_labels in (True, False):
+        print(f"class={klass.__name__} stream_labels={stream_labels}")
+        mmd = klass(conn, stream_values=True, stream_labels=stream_labels)
+        for line in mmd.write(None).split("\n"):
+            print(line)
+            if test_key in line:
+                assert str(test_val) in line
+                found_key = True
+    assert found_key

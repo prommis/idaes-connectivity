@@ -600,6 +600,10 @@ class D2(Formatter):
         self._unit_values = kwargs["unit_values"]
         self._direction = self._parse_direction(kwargs["direction"])
 
+    STREAM_VALUE_CLASS = (
+        "{style: {font-color: '#666'; stroke: '#ccc'; fill: 'white'; border-radius: 8}}"
+    )
+
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
         """Write D2 text description."""
         unit_icon = UnitIcon(IdaesPaths().icons)
@@ -607,6 +611,11 @@ class D2(Formatter):
         f = self._get_output_stream(output_file)
         d2_dir = "right" if self._direction == Direction.RIGHT else "down"
         f.write(f"direction: {d2_dir}\n")
+        if self._stream_values or self._unit_values:
+            f.write("classes:{\n")
+            if self._stream_values:
+                f.write(f"  stream_value: {self.STREAM_VALUE_CLASS}\n")
+            f.write("}\n")
         for unit_name, unit_abbr in self._conn.units.items():
             unit_str, unit_type = self._split_unit_name(unit_name)
             image_file = None if unit_type is None else unit_icon.get_icon(unit_type)
@@ -633,16 +642,38 @@ class D2(Formatter):
                 f.write(f"s{sink_num}: Sink {sink_num}\n")
                 f.write(f"f{sink_num} -> {conns[1]}")
                 if self._stream_labels:
-                    f.write(f": {stream_name}")
+                    f.write(f"{sink_num}: {stream_name}")
                 f.write("\n")
                 sink_num += 1
             else:
-                f.write(f"{conns[0]} -> {conns[1]}")
-                if self._stream_labels:
-                    f.write(f": {stream_name}")
+                if self._stream_labels and not self._stream_values:
+                    f.write(f"{conns[0]} -> {conns[1]}: {stream_name}")
+                elif self._stream_values:
+                    v = self._conn.stream_values[stream_name]
+                    if v:
+                        values_text = self._format_values(v)
+                        if self._stream_labels:
+                            values_text = f"{stream_name}\\n" + values_text
+                        stream_node = f"S_{stream_name}"
+                        f.write(f'{stream_node}: "{values_text}"\n')
+                        f.write(f"{stream_node}.class: stream_value\n")
+                        f.write(f"{conns[0]} -> {stream_node} -> {conns[1]}\n")
+                    elif self._stream_labels:
+                        f.write(f"{conns[0]} -> {conns[1]}: {stream_name}")
+                    else:
+                        f.write(f"{conns[0]} -> {conns[1]}")
+                else:
+                    f.write(f"{conns[0]} -> {conns[1]}")
                 f.write("\n")
 
         return self._write_return(f)
+
+    @staticmethod
+    def _format_values(data):
+        text_list = []
+        for k, v in data.items():
+            text_list.append(f"{k} = {v}")
+        return "\\n".join(text_list)
 
     @staticmethod
     def _split_unit_name(n):
