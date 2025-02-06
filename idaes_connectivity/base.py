@@ -86,6 +86,9 @@ class Connectivity:
             a unit as an unconnected feed or outlet for the flowsheet (possible).
     """
 
+    #: Default class for a unit
+    DEFAULT_UNIT_CLASS = "Component"
+
     def __init__(
         self,
         units: Dict = None,
@@ -117,18 +120,18 @@ class Connectivity:
                                   use the model object as the flowsheet.
             model_build_func: Name of function in `input_module` to invoke to build
                               and return the model object.
-            unit_class: If true, add class name of unit to unit name as "<name>::<class>"
 
         Raises:
             ModelLoadError: Couldn't load the model/module
             ValueError: Invalid inputs
         """
+        self._unit_classes = {}
         if units is not None and streams is not None and connections is not None:
             self.units = units
+            self._unit_classes = {k: self.DEFAULT_UNIT_CLASS for k in self.units}
             self.streams = streams
             self.connections = connections
         else:
-            self._unit_class = unit_class
             if input_module is not None or input_model is not None:
                 if input_model is None:
                     try:
@@ -162,12 +165,14 @@ class Connectivity:
                 else:
                     self._header = input_data[0]
                     self._rows = input_data[1:]
-                if len(self._rows) == 0:
+                if len(self._rows) == 0:  # e.g., when loading from CSV
                     raise DataLoadError(datafile.name, "Empty file")
                 _log.info("[end] load from file or data")
             else:
                 raise ValueError("No inputs provided")
             self.units = self._build_units()
+            if len(self._unit_classes) == 0:
+                self._unit_classes = {k: self.DEFAULT_UNIT_CLASS for k in self.units}
             self._unit_values = {k: {} for k in self.units}
             self._unit_values_changed, self._reified_unit_values = False, {}
             self.streams = self._build_streams()
@@ -187,6 +192,21 @@ class Connectivity:
             raise KeyError(f"No unit with name '{unit_name}'")
         values = self._unit_values[unit_name]
         values[key] = value if hasattr(value, "value") else ValueContainer(value)
+        self._unit_values_changed = True
+
+    def set_unit_class(self, unit_name: str, class_name: str):
+        """Set name of the unit class.
+
+        This will override the class inferred from the model, if any.
+
+        Args:
+            unit_name: Name of the unit
+            class_name: Arbitrary name of unit's class (or type)
+
+        Raises:
+            KeyError: If `unit_name` does not correspond to a unit.
+        """
+        self._unit_classes[unit_name] = class_name
 
     @property
     def stream_values(self):
@@ -201,12 +221,24 @@ class Connectivity:
     @property
     def unit_values(self):
         if self._unit_values_changed:
-            self._reified_unit_values = {
-                k1: {k2: v2.value for k2, v2 in v1.items()}
-                for k1, v1 in self._unit_values.items()
-            }
+            self._reified_unit_values = {}
+            for k1, v1 in self._unit_values.items():
+                self._reified_unit_values[k1] = {k2: v2.value for k2, v2 in v1.items()}
             self._unit_values_changed = False
         return self._reified_unit_values
+
+    def get_unit_class(self, name: str):
+        """Get class for a unit.
+
+        Args:
+            name: Name of the unit
+
+        Raises:
+            KeyError: If the unit is not valid
+        """
+        # if len(self._unit_classes) == 0:
+        #     self._unit_classes = {k: self.DEFAULT_UNIT_CLASS for k in self.units}
+        return self._unit_classes[name]
 
     def as_table(self) -> List[List[str]]:
         rows = [self._header.copy()]
@@ -287,6 +319,8 @@ class Connectivity:
             stream_name = comp.getname()
             src, dst = comp.source.parent_block(), comp.dest.parent_block()
             src_name, dst_name = self._model_unit_name(src), self._model_unit_name(dst)
+            self._unit_classes[src_name] = self._model_unit_class(src)
+            self._unit_classes[dst_name] = self._model_unit_class(dst)
             # print(f"{src_name} , {dst_name}")
             src_i, dst_i, stream_i = -1, -1, -1
             try:
@@ -327,16 +361,15 @@ class Connectivity:
 
     def _model_unit_name(self, block):
         """Get the unit name for a Pyomo/IDAES block."""
-        name = block.getname()
-        if not self._unit_class:
-            return name
+        return block.getname()
+
+    def _model_unit_class(self, block):
         class_name = block.__class__.__name__
         # extract last part of the name
         m = re.search(r"[a-zA-Z]\w+$", class_name)
         if m is None:
-            return name
-        block_type = class_name[m.start() : m.end()]
-        return f"{name}::{block_type}"
+            return self._model_unit_name(block)
+        return class_name[m.start() : m.end()]
 
 
 class Formatter(abc.ABC):
@@ -426,17 +459,19 @@ class Mermaid(Formatter):
     #:
     #:   Mermaid.defaults.update(dict(stream_labels=True, stream_values=True))
     #:
-    #: direction (str): Diagram direction
-    #: stream_labels (bool): If true, add stream labels
-    #: stream_values (bool): If True, show stream values
-    #: unit_values (bool): If True, show unit values
-    #: indent (str): Indent (spaces) in output text
+    #: - direction (str): Diagram direction
+    #: - stream_labels (bool): If true, add stream labels
+    #: - stream_values (bool): If True, show stream values
+    #: - unit_values (bool): If True, show unit values
+    #: - unit_class (bool): If True, include name of unit's class in its name
+    #: - indent (str): Indent (spaces) in output text
 
     defaults = {
         "direction": "LR",
         "stream_labels": False,
         "stream_values": False,
         "unit_values": False,
+        "unit_class": False,
         "indent": "    ",
     }
 
@@ -456,6 +491,7 @@ class Mermaid(Formatter):
         self._stream_labels = kwargs["stream_labels"]
         self._stream_values = kwargs["stream_values"]
         self._unit_values = kwargs["unit_values"]
+        self._unit_class = kwargs["unit_class"]
         self._direction = self._parse_direction(kwargs["direction"])
         if self._stream_values:
             self._streams_with_values = set()
@@ -479,7 +515,7 @@ class Mermaid(Formatter):
                 if values:
                     abbr = self._conn.streams[name]
                     sv_name = f"{abbr}_V"
-                    sv_text = self._format_values(values)
+                    sv_text = self._format_stream_values(values)
                     if self._stream_labels:
                         sv_text = f"{name}\n" + sv_text
                     outfile.write(f'{i}{sv_name}("{sv_text}")\n')
@@ -500,7 +536,7 @@ class Mermaid(Formatter):
             outfile.write(f"{i}{s}\n")
 
     @staticmethod
-    def _format_values(data):
+    def _format_stream_values(data):
         text_list = []
         for k, v in data.items():
             text_list.append(f"{k} = {v}")
@@ -508,7 +544,17 @@ class Mermaid(Formatter):
 
     def _get_mermaid_units(self):
         for name, abbr in self._conn.units.items():
-            yield f"{abbr}[{name}]"
+            if self._unit_class:
+                klass = self._conn.get_unit_class(name)
+                display_name = f"{name}::{klass}"
+            else:
+                display_name = name
+            if self._unit_values:
+                values = self._conn.unit_values[name]
+                if values:
+                    values_str = "\n".join((f"{k}={v}" for k, v in values.items()))
+                    display_name = f"{display_name}\n{values_str}"
+            yield f"{abbr}[{display_name}]"
 
     def _get_mermaid_streams(self):
         for name, abbr in self._conn.streams.items():
@@ -564,19 +610,21 @@ class D2(Formatter):
     #: corresponding keyword in the constructor.
     #: For example::
     #:
-    #:   Mermaid.defaults.update(dict(stream_labels=True, stream_values=True))
+    #:   D2.defaults.update(dict(stream_labels=True, stream_values=True))
     #:
-    #: direction (str): Diagram direction
-    #: stream_labels (bool): If true, add stream labels
-    #: stream_values (bool): If True, show stream values
-    #: unit_values (bool): If True, show unit values
-    #: indent (str): Indent (spaces) in output text
+    #: - direction (str): Diagram direction
+    #: - stream_labels (bool): If true, add stream labels
+    #: - stream_values (bool): If True, show stream values
+    #: - unit_values (bool): If True, show unit values
+    #: - unit_class (bool): If True, include name of unit's class in its name
+    #: - indent (str): Indent (spaces) in output text
 
     defaults = {
         "direction": "LR",
         "stream_labels": False,
         "stream_values": False,
         "unit_values": False,
+        "unit_class": False,
     }
 
     def __init__(
@@ -598,6 +646,7 @@ class D2(Formatter):
         self._stream_labels = kwargs["stream_labels"]
         self._stream_values = kwargs["stream_values"]
         self._unit_values = kwargs["unit_values"]
+        self._unit_class = kwargs["unit_class"]
         self._direction = self._parse_direction(kwargs["direction"])
 
     STREAM_VALUE_CLASS = (
@@ -617,13 +666,25 @@ class D2(Formatter):
                 f.write(f"  stream_value: {self.STREAM_VALUE_CLASS}\n")
             f.write("}\n")
         for unit_name, unit_abbr in self._conn.units.items():
-            unit_str, unit_type = self._split_unit_name(unit_name)
+            unit_type = self._conn.get_unit_class(unit_name)
+            if self._unit_class:
+                unit_str = f"{unit_name}::{unit_type}"
+            else:
+                unit_str = unit_name
+            if self._unit_values:
+                values_to_show = self._get_unit_values(unit_name)
+                if values_to_show is None:
+                    unit_display_str = unit_str
+                else:
+                    unit_display_str = '"' + unit_str + "\\n" + values_to_show + '"'
+            else:
+                unit_display_str = unit_str
             image_file = None if unit_type is None else unit_icon.get_icon(unit_type)
             if image_file is None:
-                f.write(f"{unit_abbr}: {unit_str}\n")
+                f.write(f"{unit_abbr}: {unit_display_str}\n")
             else:
                 f.write(
-                    f"{unit_abbr}: {unit_str} {{\n"
+                    f"{unit_abbr}: {unit_display_str} {{\n"
                     f"  shape: image\n"
                     f"  icon: {image_file}\n"
                     f"}}\n"
@@ -675,9 +736,8 @@ class D2(Formatter):
             text_list.append(f"{k} = {v}")
         return "\\n".join(text_list)
 
-    @staticmethod
-    def _split_unit_name(n):
-        parts = n.split("::", 1)
-        if len(parts) == 1:
-            return n, None
-        return parts
+    def _get_unit_values(self, unit_name):
+        values = self._conn.unit_values[unit_name]
+        if not values:
+            return None
+        return "\\n".join((f"{k} = {v}" for k, v in values.items()))

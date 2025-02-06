@@ -31,6 +31,7 @@ _1, _2, _3 = example_csv, example_d2, example_mermaid
 
 # Constants
 STREAM_1 = "s01"
+UNIT_1 = "M01"
 
 
 def setup():
@@ -96,8 +97,8 @@ def test_stream_values_formatter(klass):
     _, conn = setup()
     test_key, test_val = "test_value", 123
     conn.set_stream_value(STREAM_1, test_key, test_val)
-    found_key = False
     for stream_labels in (True, False):
+        found_key = False
         print(f"class={klass.__name__} stream_labels={stream_labels}")
         mmd = klass(conn, stream_values=True, stream_labels=stream_labels)
         for line in mmd.write(None).split("\n"):
@@ -105,4 +106,64 @@ def test_stream_values_formatter(klass):
             if test_key in line:
                 assert str(test_val) in line
                 found_key = True
-    assert found_key
+        assert found_key
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("klass", (Mermaid, D2))
+def test_unit_values_formatter(klass):
+    _, conn = setup()
+    test_key, test_val, test_unit_class = "test_value", 123, "foobar"
+    conn.set_unit_value(UNIT_1, test_key, test_val)
+    conn.set_unit_class(UNIT_1, test_unit_class)
+    for uc_flag in (False, True):
+        print(f"class={klass.__name__} unit_class={uc_flag}")
+        mmd = klass(conn, unit_values=True, unit_class=uc_flag)
+        found_key, found_class = False, False
+        for line in mmd.write(None).split("\n"):
+            print(line)
+            if test_key in line:
+                assert str(test_val) in line
+                found_key = True
+            if test_unit_class in line:
+                found_class = True
+        assert found_key
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("klass", (Mermaid, D2))
+def test_unit_and_stream_values_formatter(klass):
+    _, conn = setup()
+    s_test_key, s_test_val = "test_value", 123
+    conn.set_stream_value(STREAM_1, s_test_key, s_test_val)
+    u_test_key, u_test_val, u_test_unit_class = "test_value", 123, "foobar"
+    conn.set_unit_value(UNIT_1, u_test_key, u_test_val)
+    conn.set_unit_class(UNIT_1, u_test_unit_class)
+    for stream_labels in (True, False):
+        for uc_flag in (False, True):
+            s_found_key, u_found_key, u_found_class = False, False, False
+            print(
+                f"class={klass.__name__} stream_labels={stream_labels} unit_class={uc_flag}"
+            )
+            mmd = klass(
+                conn,
+                stream_values=True,
+                unit_values=True,
+                stream_labels=stream_labels,
+                unit_class=uc_flag,
+            )
+            for line in mmd.write(None).split("\n"):
+                print(line)
+                if s_test_key in line:
+                    assert str(s_test_val) in line
+                    s_found_key = True
+                if u_test_key in line:
+                    assert str(u_test_val) in line
+                    u_found_key = True
+                if u_test_unit_class in line:
+                    u_found_class = True
+
+            assert s_found_key
+            assert u_found_key
+            # class should be there if display flag is on, else not
+            assert u_found_class == uc_flag
