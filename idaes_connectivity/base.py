@@ -174,25 +174,65 @@ class Connectivity:
             if len(self._unit_classes) == 0:
                 self._unit_classes = {k: self.DEFAULT_UNIT_CLASS for k in self.units}
             self._unit_values = {k: {} for k in self.units}
-            self._unit_values_changed, self._reified_unit_values = False, {}
             self.streams = self._build_streams()
             self._stream_values = {k: {} for k in self.streams}
-            self._stream_values_changed, self._reified_stream_values = False, {}
             self.connections = self._build_connections()
 
     def set_stream_value(self, stream_name: str, key: str, value):
+        """Set a value for a stream.
+
+        Args:
+            stream_name: Name of the stream
+            key: Name of the value
+            value: The value. Accepts Pyomo value objects with a `.value` attribute, or
+                   "plain" values (string or numeric).
+
+        Raises:
+            KeyError: If the `stream_name` is not a valid stream.
+        """
         if stream_name not in self._stream_values:
             raise KeyError(f"No stream with name '{stream_name}'")
         values = self._stream_values[stream_name]
         values[key] = value if hasattr(value, "value") else ValueContainer(value)
-        self._stream_values_changed = True
+
+    def set_stream_values_map(self, stream_values_map: Dict[str, Dict[str, str]]):
+        """Set multiple stream values using a mapping.
+
+        Args:
+            stream_values_map: Mapping with keys being stream names and values being
+                               another mapping of stream value names to the value.
+
+        Raises:
+            KeyError: If any of the stream names is not a valid stream.
+        """
+        for stream_name, set_values in stream_values_map.items():
+            for key, value in set_values.items():
+                self.set_stream_value(stream_name, key, value)
+
+    def clear_stream_values(self):
+        """Remove all stream values."""
+        self._stream_values = {}
 
     def set_unit_value(self, unit_name: str, key: str, value):
+        """Set a value for a unit.
+        This method has the same semantics as :meth:`set_stream_value`.
+        """
         if unit_name not in self._unit_values:
             raise KeyError(f"No unit with name '{unit_name}'")
         values = self._unit_values[unit_name]
         values[key] = value if hasattr(value, "value") else ValueContainer(value)
-        self._unit_values_changed = True
+
+    def set_unit_values_map(self, unit_values_map: Dict[str, Dict[str, str]]):
+        """Set multiple unit values using a mapping.
+        This method has the same semantics as :meth:`set_stream_values_map`.
+        """
+        for unit_name, set_values in unit_values_map.items():
+            for key, value in set_values.items():
+                self.set_unit_value(unit_name, key, value)
+
+    def clear_unit_values(self):
+        """Remove all unit values."""
+        self._unit_values = {}
 
     def set_unit_class(self, unit_name: str, class_name: str):
         """Set name of the unit class.
@@ -210,22 +250,27 @@ class Connectivity:
 
     @property
     def stream_values(self):
-        if self._stream_values_changed:
-            self._reified_stream_values = {
-                k1: {k2: v2.value for k2, v2 in v1.items()}
-                for k1, v1 in self._stream_values.items()
-            }
-            self._stream_values_changed = False
-        return self._reified_stream_values
+        """Get current stream values.
+
+        This returns a copy, that can be modified without changing the underlying
+        values in the class.
+        """
+        return {
+            k1: {k2: v2.value for k2, v2 in v1.items()}
+            for k1, v1 in self._stream_values.items()
+        }
 
     @property
     def unit_values(self):
-        if self._unit_values_changed:
-            self._reified_unit_values = {}
-            for k1, v1 in self._unit_values.items():
-                self._reified_unit_values[k1] = {k2: v2.value for k2, v2 in v1.items()}
-            self._unit_values_changed = False
-        return self._reified_unit_values
+        """Get current unit values.
+
+        This returns a copy, that can be modified without changing the underlying
+        values in the class.
+        """
+        return {
+            k1: {k2: v2.value for k2, v2 in v1.items()}
+            for k1, v1 in self._unit_values.items()
+        }
 
     def get_unit_class(self, name: str):
         """Get class for a unit.

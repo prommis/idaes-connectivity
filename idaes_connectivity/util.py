@@ -12,9 +12,17 @@
 Utility functions and classes.
 """
 
+# stdlib
+import logging
 from pathlib import Path
-from typing import Optional
+from re import compile, Pattern
+from typing import Dict, Iterable, Optional, Tuple, Union
 import warnings
+
+# third-party
+from pandas import DataFrame
+
+_log = logging.getLogger(__name__)
 
 
 class IdaesPaths:
@@ -117,3 +125,77 @@ class UnitIcon:
         else:
             p = None
         return p
+
+
+def get_stream_display_values(
+    stream_table: DataFrame,
+    value_map: Dict[Union[str, Pattern], Tuple[str, str]],
+) -> Dict[str, Dict[str, str]]:
+    """Select and format stream values in the `stream_table`.
+
+    Args:
+        stream_table: A pandas.DataFrame with streams in the columns and values
+                      in the rows. This is the default format returned by the IDAES
+                      flowsheet `stream_table()` method.
+        value_map: Select and format values using this mapping from a stream value name
+                   (or regular expression that will match names) to a tuple with the
+                   units and format specifier.
+                   For example::
+
+                        { "temperature": ("K", ".3g"),
+                        re.compile("conc_mass_comp.*"): ("kg/m^3", ".4g") }
+
+    Returns:
+        Mapping with keys being stream names and values being another
+        mapping of stream value names to the formatted display value.
+        For example::
+
+            {"stream1": {
+                "temperature": "305.128 K",
+                 "conc_mass_comp HSO4": "2.71798 kg/m^3" },
+             "stream2": {
+                "temperature": "305.128 K",
+                 "conc_mass_comp HSO4": "2.71798 kg/m^3" },
+              ...
+            }
+    Raises:
+        KeyError: Stream name given as a string is not found
+    """
+    # Table keys should be ['Units', '<stream1>', '<stream2>', ... ]
+    if len(stream_table.keys()) < 2:
+        return
+
+    stream_names = list(stream_table.keys())[1:]
+    stream0 = stream_names[0]
+
+    stream_map = {}
+
+    # set regular expressions first
+    for vm_key, vm_val in value_map.items():
+        if isinstance(vm_key, Pattern):
+            for stream_val_name in stream_table[stream0].keys():
+                if vm_key.match(stream_val_name):
+                    stream_map[stream_val_name] = vm_val
+
+    # set string matches next (will override regex)
+    for vm_key, vm_val in value_map.items():
+        if not isinstance(vm_key, Pattern):
+            if vm_key not in stream_table[stream0].keys():
+                raise KeyError(f"Stream value '{vm_key}' not found in stream table")
+            stream_map[vm_key] = vm_val
+
+    result = {}
+    for stream_name in stream_names:
+        display_values = {}
+        for key, value in stream_table[stream_name].items():
+            if value == "-" or key not in stream_map:
+                continue
+            unit, spec = stream_map[key]
+            display_value = f"{{v:{spec}}}".format(v=value)
+            if unit:
+                display_value = f"{display_value} {unit}"
+            display_values[key] = display_value
+        if display_values:
+            result[stream_name] = display_values
+
+    return result
