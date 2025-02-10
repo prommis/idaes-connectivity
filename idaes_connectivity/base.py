@@ -19,6 +19,7 @@ in various formats.
 
 import abc
 import argparse
+from collections.abc import MutableMapping
 import csv
 from dataclasses import dataclass, field
 import enum
@@ -59,6 +60,11 @@ class DataLoadError(Exception):
         super().__init__(f"Could not load from file '{path}': {err}")
 
 
+class ValueContainer:
+    def __init__(self, obj):
+        self.value = obj
+
+
 class Connectivity:
     """Represent connectivity of a Pyomo/IDAES model.
 
@@ -78,8 +84,10 @@ class Connectivity:
             Thus each item in this dict describes an arc, or a line in a diagram,
             with a stream connecting two units (usual case) or coming into or out of
             a unit as an unconnected feed or outlet for the flowsheet (possible).
-
     """
+
+    #: Default class for a unit
+    DEFAULT_UNIT_CLASS = "Component"
 
     def __init__(
         self,
@@ -112,18 +120,18 @@ class Connectivity:
                                   use the model object as the flowsheet.
             model_build_func: Name of function in `input_module` to invoke to build
                               and return the model object.
-            unit_class: If true, add class name of unit to unit name as "<name>::<class>"
 
         Raises:
             ModelLoadError: Couldn't load the model/module
             ValueError: Invalid inputs
         """
+        self._unit_classes = {}
         if units is not None and streams is not None and connections is not None:
             self.units = units
+            self._unit_classes = {k: self.DEFAULT_UNIT_CLASS for k in self.units}
             self.streams = streams
             self.connections = connections
         else:
-            self._unit_class = unit_class
             if input_module is not None or input_model is not None:
                 if input_model is None:
                     try:
@@ -157,14 +165,125 @@ class Connectivity:
                 else:
                     self._header = input_data[0]
                     self._rows = input_data[1:]
-                if len(self._rows) == 0:
+                if len(self._rows) == 0:  # e.g., when loading from CSV
                     raise DataLoadError(datafile.name, "Empty file")
                 _log.info("[end] load from file or data")
             else:
                 raise ValueError("No inputs provided")
             self.units = self._build_units()
+            if len(self._unit_classes) == 0:
+                self._unit_classes = {k: self.DEFAULT_UNIT_CLASS for k in self.units}
+            self._unit_values = {k: {} for k in self.units}
             self.streams = self._build_streams()
+            self._stream_values = {k: {} for k in self.streams}
             self.connections = self._build_connections()
+
+    @property
+    def stream_values(self):
+        """Get current stream values.
+
+        This returns a copy, that can be modified without changing the underlying
+        values in the class.
+        """
+        return {
+            k1: {k2: v2.value for k2, v2 in v1.items()}
+            for k1, v1 in self._stream_values.items()
+        }
+
+    def set_stream_value(self, stream_name: str, key: str, value):
+        """Set a value for a stream.
+
+        Args:
+            stream_name: Name of the stream
+            key: Name of the value
+            value: The value. Accepts Pyomo value objects with a `.value` attribute, or
+                   "plain" values (string or numeric).
+
+        Raises:
+            KeyError: If the `stream_name` is not a valid stream.
+        """
+        if stream_name not in self._stream_values:
+            raise KeyError(f"No stream with name '{stream_name}'")
+        values = self._stream_values[stream_name]
+        values[key] = value if hasattr(value, "value") else ValueContainer(value)
+
+    def set_stream_values_map(self, stream_values_map: Dict[str, Dict[str, str]]):
+        """Set multiple stream values using a mapping.
+
+        Args:
+            stream_values_map: Mapping with keys being stream names and values being
+                               another mapping of stream value names to the value.
+
+        Raises:
+            KeyError: If any of the stream names is not a valid stream.
+        """
+        for stream_name, set_values in stream_values_map.items():
+            for key, value in set_values.items():
+                self.set_stream_value(stream_name, key, value)
+
+    def clear_stream_values(self):
+        """Remove all stream values."""
+        self._stream_values = {}
+
+    @property
+    def unit_values(self):
+        """Get current unit values.
+
+        This returns a copy, that can be modified without changing the underlying
+        values in the class.
+        """
+        return {
+            k1: {k2: v2.value for k2, v2 in v1.items()}
+            for k1, v1 in self._unit_values.items()
+        }
+
+    def set_unit_value(self, unit_name: str, key: str, value):
+        """Set a value for a unit.
+        This method has the same semantics as :meth:`set_stream_value`.
+        """
+        if unit_name not in self._unit_values:
+            raise KeyError(f"No unit with name '{unit_name}'")
+        values = self._unit_values[unit_name]
+        values[key] = value if hasattr(value, "value") else ValueContainer(value)
+
+    def set_unit_values_map(self, unit_values_map: Dict[str, Dict[str, str]]):
+        """Set multiple unit values using a mapping.
+        This method has the same semantics as :meth:`set_stream_values_map`.
+        """
+        for unit_name, set_values in unit_values_map.items():
+            for key, value in set_values.items():
+                self.set_unit_value(unit_name, key, value)
+
+    def clear_unit_values(self):
+        """Remove all unit values."""
+        self._unit_values = {}
+
+    def set_unit_class(self, unit_name: str, class_name: str):
+        """Set name of the unit class.
+
+        This will override the class inferred from the model, if any.
+
+        Args:
+            unit_name: Name of the unit
+            class_name: Arbitrary name of unit's class (or type)
+
+        Raises:
+            KeyError: If `unit_name` does not correspond to a unit.
+        """
+        self._unit_classes[unit_name] = class_name
+
+    def get_unit_class(self, name: str):
+        """Get class for a unit.
+
+        Args:
+            name: Name of the unit
+
+        Raises:
+            KeyError: If the unit is not valid
+        """
+        # if len(self._unit_classes) == 0:
+        #     self._unit_classes = {k: self.DEFAULT_UNIT_CLASS for k in self.units}
+        return self._unit_classes[name]
 
     def as_table(self) -> List[List[str]]:
         rows = [self._header.copy()]
@@ -245,6 +364,8 @@ class Connectivity:
             stream_name = comp.getname()
             src, dst = comp.source.parent_block(), comp.dest.parent_block()
             src_name, dst_name = self._model_unit_name(src), self._model_unit_name(dst)
+            self._unit_classes[src_name] = self._model_unit_class(src)
+            self._unit_classes[dst_name] = self._model_unit_class(dst)
             # print(f"{src_name} , {dst_name}")
             src_i, dst_i, stream_i = -1, -1, -1
             try:
@@ -285,16 +406,15 @@ class Connectivity:
 
     def _model_unit_name(self, block):
         """Get the unit name for a Pyomo/IDAES block."""
-        name = block.getname()
-        if not self._unit_class:
-            return name
+        return block.getname()
+
+    def _model_unit_class(self, block):
         class_name = block.__class__.__name__
         # extract last part of the name
         m = re.search(r"[a-zA-Z]\w+$", class_name)
         if m is None:
-            return name
-        block_type = class_name[m.start() : m.end()]
-        return f"{name}::{block_type}"
+            return self._model_unit_name(block)
+        return class_name[m.start() : m.end()]
 
 
 class Formatter(abc.ABC):
@@ -302,22 +422,20 @@ class Formatter(abc.ABC):
     more easily visualized or processed by other tools.
     """
 
+    defaults = {}  # extend in subclasses
+
     def __init__(self, connectivity: Connectivity, **kwargs):
         self._conn = connectivity
 
-    def _set_direction(self, direction):
-        if direction is None:
-            self._direction = Direction.RIGHT
-        else:
-            self._parse_direction(direction)
-
-    def _parse_direction(self, d):
+    @staticmethod
+    def _parse_direction(d):
+        if not hasattr(d, "lower"):
+            raise ValueError(f"Direction '{d}' must be a string")
         if d.lower() == "lr":
-            self._direction = Direction.RIGHT
+            return Direction.RIGHT
         elif d.lower() == "td":
-            self._direction = Direction.DOWN
-        else:
-            raise ValueError(f"Direction '{d}' not recognized")
+            return Direction.DOWN
+        raise ValueError(f"Direction '{d}' not recognized")
 
     @abc.abstractmethod
     def write(
@@ -354,6 +472,12 @@ class Formatter(abc.ABC):
             f = open(output_file, "w")
         return f
 
+    @classmethod
+    def _use_defaults(cls, kwargs):
+        for k, v in cls.defaults.items():
+            if k not in kwargs or kwargs[k] is None:
+                kwargs[k] = v
+
 
 class CSV(Formatter):
     """Write out the data as CSV."""
@@ -373,35 +497,49 @@ class Mermaid(Formatter):
     See https://mermaid.js.org/
     """
 
-    def __init__(
-        self,
-        connectivity: Connectivity,
-        direction: str = None,
-        stream_labels: bool = False,
-        indent="   ",
-        **kwargs,
-    ):
-        """Constructor.
+    #: Default values.
+    #  Use these values if no value is given to the
+    #: corresponding keyword in the constructor.
+    #: For example::
+    #:
+    #:   Mermaid.defaults.update(dict(stream_labels=True, stream_values=True))
+    #:
+    #: - direction (str): Diagram direction
+    #: - stream_labels (bool): If true, add stream labels
+    #: - stream_values (bool): If True, show stream values
+    #: - unit_values (bool): If True, show unit values
+    #: - unit_class (bool): If True, include name of unit's class in its name
+    #: - indent (str): Indent (spaces) in output text
+
+    defaults = {
+        "direction": "LR",
+        "stream_labels": False,
+        "stream_values": False,
+        "unit_values": False,
+        "unit_class": False,
+        "indent": "    ",
+    }
+
+    def __init__(self, connectivity: Connectivity, **kwargs):
+        """Constructor. See class `defaults` for default values.
 
         Args:
             connectivity (Connectivity): Model connectivity
-            direction (str, optional): Diagram direction. If None, do left to right.
-            stream_labels (bool, optional): If true, add stream labels.
-            indent (str, optional): Indent (spaces) in output text.
+            kwargs (dict): See `Mermaid.defaults` for keywords
 
         Raises:
-            RuntimeError: Invalid `direction` argument.
+            ValueError: Invalid `direction` argument.
         """
         super().__init__(connectivity, **kwargs)
-        self._set_direction(direction)
-        self.indent = indent
-        self._stream_labels = stream_labels
-        if self._direction == Direction.RIGHT:
-            self._mm_dir = "LR"
-        elif self._direction == Direction.DOWN:
-            self._mm_dir = "TD"
-        else:
-            raise RuntimeError(f"Unknown parsed direction '{self._direction}'")
+        self._use_defaults(kwargs)
+        self.indent = kwargs["indent"]
+        self._stream_labels = kwargs["stream_labels"]
+        self._stream_values = kwargs["stream_values"]
+        self._unit_values = kwargs["unit_values"]
+        self._unit_class = kwargs["unit_class"]
+        self._direction = self._parse_direction(kwargs["direction"])
+        if self._stream_values:
+            self._streams_with_values = set()
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
         """Write Mermaid text description."""
@@ -411,8 +549,25 @@ class Mermaid(Formatter):
 
     def _body(self, outfile):
         i = self.indent
-        outfile.write(f"flowchart {self._mm_dir}\n")
-        # Get connections first, so we know which streams to show
+        mm_dir = "LR" if self._direction == Direction.RIGHT else "TD"
+        outfile.write(f"flowchart {mm_dir}\n")
+        # Stream values
+        if self._stream_values:
+            outfile.write(
+                f"{i}classDef streamval fill:#fff,stroke:#666,stroke-width:1px,font-size:80%;\n"
+            )
+            for name, values in self._conn.stream_values.items():
+                if values:
+                    abbr = self._conn.streams[name]
+                    sv_name = f"{abbr}_V"
+                    sv_text = self._format_stream_values(values)
+                    if self._stream_labels:
+                        sv_text = f"{name}\n" + sv_text
+                    outfile.write(f'{i}{sv_name}("{sv_text}")\n')
+                    self._streams_with_values.add(sv_name)
+            all_streams = ",".join(self._streams_with_values)
+            outfile.write(f"{i}class {all_streams} streamval;\n")
+        # Get connections and which streams to show
         connections, show_streams = self._get_connections()
         # Units
         for s in self._get_mermaid_units():
@@ -425,9 +580,26 @@ class Mermaid(Formatter):
         for s in connections:
             outfile.write(f"{i}{s}\n")
 
+    @staticmethod
+    def _format_stream_values(data):
+        text_list = []
+        for k, v in data.items():
+            text_list.append(f"{k} = {v}")
+        return "\n".join(text_list)
+
     def _get_mermaid_units(self):
         for name, abbr in self._conn.units.items():
-            yield f"{abbr}[{name}]"
+            if self._unit_class:
+                klass = self._conn.get_unit_class(name)
+                display_name = f"{name}::{klass}"
+            else:
+                display_name = name
+            if self._unit_values:
+                values = self._conn.unit_values[name]
+                if values:
+                    values_str = "\n".join((f"{k}={v}" for k, v in values.items()))
+                    display_name = f"{display_name}\n{values_str}"
+            yield f"{abbr}[{display_name}]"
 
     def _get_mermaid_streams(self):
         for name, abbr in self._conn.streams.items():
@@ -442,7 +614,14 @@ class Mermaid(Formatter):
             stream_name = stream_name_map[stream_abbr]
             src, tgt = values[0], values[1]
             if src is not None and tgt is not None:
-                if self._stream_labels:
+                if self._stream_values:
+                    sv_name = f"{stream_abbr}_V"
+                    if sv_name in self._streams_with_values:
+                        connections.append(f"{src} --- {sv_name}")
+                        connections.append(f"{sv_name} --> {tgt}")
+                    else:
+                        connections.append(f"{src} --> {tgt}")
+                elif self._stream_labels:
                     label = self._clean_stream_label(stream_name)
                     connections.append(f"{src} -- {label} -->{tgt}")
                 else:
@@ -471,48 +650,86 @@ class D2(Formatter):
     See https://d2lang.com
     """
 
+    #: Default values.
+    #  Use these values if no value is given to the
+    #: corresponding keyword in the constructor.
+    #: For example::
+    #:
+    #:   D2.defaults.update(dict(stream_labels=True, stream_values=True))
+    #:
+    #: - direction (str): Diagram direction
+    #: - stream_labels (bool): If true, add stream labels
+    #: - stream_values (bool): If True, show stream values
+    #: - unit_values (bool): If True, show unit values
+    #: - unit_class (bool): If True, include name of unit's class in its name
+    #: - indent (str): Indent (spaces) in output text
+
+    defaults = {
+        "direction": "LR",
+        "stream_labels": False,
+        "stream_values": False,
+        "unit_values": False,
+        "unit_class": False,
+    }
+
     def __init__(
         self,
         connectivity: Connectivity,
-        direction: str = None,
-        stream_labels: bool = False,
         **kwargs,
     ):
         """Constructor.
 
         Args:
             connectivity (Connectivity): Model connectivity
-            direction (str, optional): Diagram direction. If None, do left to right.
-            stream_labels (bool, optional): If true, add stream labels.
-            indent (str, optional): Indent (spaces) in output text.
+            kwargs (dict): See `D2.defaults` for keywords
 
         Raises:
-            RuntimeError: Invalid `direction` argument.
+            ValueError: Invalid direction.
         """
         super().__init__(connectivity, **kwargs)
-        self._set_direction(direction)
-        self._labels = stream_labels
-        if self._direction == Direction.RIGHT:
-            self._d2_dir = "right"
-        elif self._direction == Direction.DOWN:
-            self._d2_dir = "down"
-        else:
-            raise RuntimeError(f"Unknown parsed direction '{self._direction}'")
+        self._use_defaults(kwargs)
+        self._stream_labels = kwargs["stream_labels"]
+        self._stream_values = kwargs["stream_values"]
+        self._unit_values = kwargs["unit_values"]
+        self._unit_class = kwargs["unit_class"]
+        self._direction = self._parse_direction(kwargs["direction"])
+
+    STREAM_VALUE_CLASS = (
+        "{style: {font-color: '#666'; stroke: '#ccc'; fill: 'white'; border-radius: 8}}"
+    )
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
         """Write D2 text description."""
-        unit_icon = UnitIcon(IdaesPaths().icons)
+        unit_icon = UnitIcon(IdaesPaths.icons())
         feed_num, sink_num = 1, 1
         f = self._get_output_stream(output_file)
-        f.write(f"direction: {self._d2_dir}\n")
+        d2_dir = "right" if self._direction == Direction.RIGHT else "down"
+        f.write(f"direction: {d2_dir}\n")
+        if self._stream_values or self._unit_values:
+            f.write("classes:{\n")
+            if self._stream_values:
+                f.write(f"  stream_value: {self.STREAM_VALUE_CLASS}\n")
+            f.write("}\n")
         for unit_name, unit_abbr in self._conn.units.items():
-            unit_str, unit_type = self._split_unit_name(unit_name)
+            unit_type = self._conn.get_unit_class(unit_name)
+            if self._unit_class:
+                unit_str = f"{unit_name}::{unit_type}"
+            else:
+                unit_str = unit_name
+            if self._unit_values:
+                values_to_show = self._get_unit_values(unit_name)
+                if values_to_show is None:
+                    unit_display_str = unit_str
+                else:
+                    unit_display_str = '"' + unit_str + "\\n" + values_to_show + '"'
+            else:
+                unit_display_str = unit_str
             image_file = None if unit_type is None else unit_icon.get_icon(unit_type)
             if image_file is None:
-                f.write(f"{unit_abbr}: {unit_str}\n")
+                f.write(f"{unit_abbr}: {unit_display_str}\n")
             else:
                 f.write(
-                    f"{unit_abbr}: {unit_str} {{\n"
+                    f"{unit_abbr}: {unit_display_str} {{\n"
                     f"  shape: image\n"
                     f"  icon: {image_file}\n"
                     f"}}\n"
@@ -523,28 +740,49 @@ class D2(Formatter):
             if conns[0] is None:
                 f.write(f"f{feed_num}: Feed {feed_num}\n")
                 f.write(f"f{feed_num} -> {conns[1]}")
-                if self._labels:
+                if self._stream_labels:
                     f.write(f": {stream_name}")
                 f.write("\n")
                 feed_num += 1
             elif conns[1] is None:
                 f.write(f"s{sink_num}: Sink {sink_num}\n")
                 f.write(f"f{sink_num} -> {conns[1]}")
-                if self._labels:
-                    f.write(f": {stream_name}")
+                if self._stream_labels:
+                    f.write(f"{sink_num}: {stream_name}")
                 f.write("\n")
                 sink_num += 1
             else:
-                f.write(f"{conns[0]} -> {conns[1]}")
-                if self._labels:
-                    f.write(f": {stream_name}")
+                if self._stream_labels and not self._stream_values:
+                    f.write(f"{conns[0]} -> {conns[1]}: {stream_name}")
+                elif self._stream_values:
+                    v = self._conn.stream_values[stream_name]
+                    if v:
+                        values_text = self._format_values(v)
+                        if self._stream_labels:
+                            values_text = f"{stream_name}\\n" + values_text
+                        stream_node = f"S_{stream_name}"
+                        f.write(f'{stream_node}: "{values_text}"\n')
+                        f.write(f"{stream_node}.class: stream_value\n")
+                        f.write(f"{conns[0]} -> {stream_node} -> {conns[1]}\n")
+                    elif self._stream_labels:
+                        f.write(f"{conns[0]} -> {conns[1]}: {stream_name}")
+                    else:
+                        f.write(f"{conns[0]} -> {conns[1]}")
+                else:
+                    f.write(f"{conns[0]} -> {conns[1]}")
                 f.write("\n")
 
         return self._write_return(f)
 
     @staticmethod
-    def _split_unit_name(n):
-        parts = n.split("::", 1)
-        if len(parts) == 1:
-            return n, None
-        return parts
+    def _format_values(data):
+        text_list = []
+        for k, v in data.items():
+            text_list.append(f"{k} = {v}")
+        return "\\n".join(text_list)
+
+    def _get_unit_values(self, unit_name):
+        values = self._conn.unit_values[unit_name]
+        if not values:
+            return None
+        return "\\n".join((f"{k} = {v}" for k, v in values.items()))

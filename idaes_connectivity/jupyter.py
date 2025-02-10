@@ -23,7 +23,10 @@ from idaes_connectivity.base import Connectivity, Mermaid
 
 
 def display_connectivity(
-    conn: Connectivity = None, input_model=None, mermaid_options: Dict = None
+    conn: Connectivity = None,
+    input_model=None,
+    mermaid_options: Dict = None,
+    jb=False,
 ) -> Markdown:
     """Display connectivity in a Jupyter Notebook using the built-in MermaidJS capabilities.
     Requires JupyterLab >= 4.1 or Jupyter Notebook >= 7.1.
@@ -32,6 +35,7 @@ def display_connectivity(
         conn: Constructed Connectivity of a model
         input_model: If present, create Connectivity instance from this model instead
         mermaid_options: Keyword args for {py:class}`idaes_connectivity.base.Mermaid`
+        jb: Workaround for rendering in Jupyterbook
 
     Returns:
         Markdown object, containing Mermaid graph, for Jupyter Notebook to render
@@ -44,5 +48,14 @@ def display_connectivity(
     mm_opt = mermaid_options or {}
     mermaid = Mermaid(conn, **mm_opt)
     graph_str = mermaid.write(None)
-    graph_text = f"```mermaid\n{graph_str}\n```"
-    return Markdown(graph_text)
+    if jb:
+        return _mm(graph_str)
+    else:
+        graph_text = f"```mermaid\n{graph_str}\n```"
+        return Markdown(graph_text)
+
+
+def _mm(text):
+    from mermaid import Mermaid as M
+
+    return M(text)

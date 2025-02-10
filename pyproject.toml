@@ -33,8 +33,8 @@ dependencies = [
     "pyomo >= 6.7.0",
     "pydantic >= 2",
     "ipython >= 8.3.0",
-    "idaes-pse >= 2.7.0"
-    
+    "idaes-pse >= 2.7.0",
+    "pandas >= 2.2.3"
 ]
 [project.scripts]
 idaes-conn = "idaes_connectivity.cli:main"

@@ -12,60 +12,53 @@
 Utility functions and classes.
 """
 
+# stdlib
+import logging
 from pathlib import Path
-from typing import Optional
+from re import compile, Pattern
+from typing import Dict, Iterable, Optional, Tuple, Union
 import warnings
+
+# third-party
+from pandas import DataFrame
+
+_log = logging.getLogger(__name__)
 
 
 class IdaesPaths:
-    """IDAES paths, relative to a home directory.
+    """IDAES paths, relative to a home directory."""
 
-    This class is a singleton.
+    _idaes_home = Path("~/.idaes").expanduser()
 
-    Example: `icons_path = IdaesPaths().icons`
+    @classmethod
+    def set_home(cls, path: Path) -> Path:
+        cls._idaes_home = path
+        return cls._home()
 
-    By default, the home directory is `~/.idaes`, however
-    a non-standard directory can be set by directly
-    setting the class-level attribute `idaes_home`, e.g.::
+    @classmethod
+    def reset_home(cls):
+        cls._idaes_home = Path("~/.idaes").expanduser()
 
-        IdaesPaths.idaes_home = Path("~/.foobar").expanduser()
+    @classmethod
+    def home(cls):
+        return cls._home()
 
-    """
+    @classmethod
+    def _home(cls):
+        if not cls._idaes_home.exists():
+            raise ValueError(f"IDAES  directory '{cls._idaes_home}' not found")
+        if not cls._idaes_home.is_dir():
+            raise ValueError(f"IDAES path '{cls._idaes_home}' is not a directory")
+        return cls._idaes_home
 
-    _shared_state = {}  # for singleton pattern
-
-    def __new__(cls, *args, **kwargs):
-        """Singleton pattern"""
-        obj = super(IdaesPaths, cls).__new__(cls, *args, **kwargs)
-        obj.__dict__ = cls._shared_state
-        return obj
-
-    def __init__(self):
-        """Constructor.
-
-        On first call, tries to set attribute `idaes_home` to `~/.idaes`.
-        If this fails, nothing else will work.
-        """
-        if not hasattr(self, "idaes_home"):
-            self.idaes_home = None
-            idaes_home = Path("~/.idaes").expanduser()
-            if not idaes_home.exists():
-                warnings.warn("IDAES  directory '~/.idaes' not found")
-            elif not idaes_home.is_dir():
-                warnings.warn("IDAES path '~/.idaes' is not a directory")
-            else:
-                self.idaes_home = idaes_home
-
-    @property
-    def icons(self, group: str = None):
+    @classmethod
+    def icons(cls, group: str = None):
         """Path to the directory of SVG icons
 
         Args:
           group: Currently ignored, but in the future can be used to retrieve different groups of icons.
         """
-        if self.idaes_home is None:
-            raise ValueError("Cannot get icon path, IDAES home not found")
-        return self.idaes_home / "icon_shapes"
+        return cls._home() / "icon_shapes"
 
 
 class UnitIcon:
@@ -105,6 +98,8 @@ class UnitIcon:
     }
 
     def __init__(self, icon_dir=None, ext="svg"):
+        if icon_dir is None:
+            icon_dir = IdaesPaths.icons()
         self._path = icon_dir
         self._ext = ext
 
@@ -117,3 +112,120 @@ class UnitIcon:
         else:
             p = None
         return p
+
+
+re_prefix_chr = "~"
+
+
+def get_stream_display_values(
+    stream_table: DataFrame,
+    value_map: Dict[Union[str, Pattern], Union[str, Tuple[str, str]]],
+) -> Dict[str, Dict[str, str]]:
+    """Select and format stream values in the `stream_table`.
+
+    Args:
+        stream_table: A pandas.DataFrame with streams in the columns and values
+                      in the rows. The first column is the Units for the value.
+                      This is the default format returned by the IDAES
+                      flowsheet `stream_table()` method.
+        value_map: Select and format values using this mapping from a stream value name
+                   (or regular expression that will match names) to a tuple with the
+                   units and format specifier.
+                   For example::
+
+                        { "temperature": ("K", ".3g"),
+                        re.compile("conc_mass_comp.*"): ("kg/m^3", ".4g") }
+
+                    If the units are None, the value from the "Units" column
+                    in the stream table is used. Also, giving a string instead of a
+                    tuple will set the units to None.
+                    A shorthand for a Pattern is to make the first character in
+                    the name of the value whatever `re_prefix_chr` is set to,
+                    by default a tilde ("~") character.
+
+                    Thus, the following is equivalent to the above::
+
+                        {"temperature": ".3g",
+                         "~conc.mass.comp.*": ".4g"}
+
+    Returns:
+        Mapping with keys being stream names and values being another
+        mapping of stream value names to the formatted display value.
+        For example::
+
+            {"stream1": {
+                "temperature": "305.128 K",
+                 "conc_mass_comp HSO4": "2.71798 kg/m^3" },
+             "stream2": {
+                "temperature": "305.128 K",
+                 "conc_mass_comp HSO4": "2.71798 kg/m^3" },
+              ...
+            }
+    Raises:
+        KeyError: Stream name given as a string is not found
+    """
+    # Table keys should be ['Units', '<stream1>', '<stream2>', ... ]
+    if len(stream_table.keys()) < 2:
+        return
+
+    stream_names = list(stream_table.keys())[1:]
+    stream0 = stream_names[0]
+
+    stream_map = {}
+
+    # convert bare strings to tuples with None units
+    fill_units = {}
+    for vm_key, vm_val in value_map.items():
+        if isinstance(vm_val, str):
+            fill_units[vm_key] = (None, vm_val)
+    value_map.update(fill_units)
+
+    # convert special keys to Patterns
+    patterns = {}
+    for vm_key, vm_val in value_map.items():
+        if isinstance(vm_key, str) and vm_key.startswith(re_prefix_chr):
+            expr = compile(vm_key[1:])
+            patterns[expr] = (vm_key, vm_val)
+    for p_key, p_val in patterns.items():
+        del value_map[p_val[0]]
+        value_map[p_key] = p_val[1]
+
+    # set regular expressions first
+    for vm_key, vm_val in value_map.items():
+        if isinstance(vm_key, Pattern):
+            for stream_val_name in stream_table[stream0].keys():
+                if vm_key.match(stream_val_name):
+                    stream_map[stream_val_name] = vm_val
+
+    # set string matches next (will override regex)
+    for vm_key, vm_val in value_map.items():
+        if not isinstance(vm_key, Pattern):
+            if vm_key not in stream_table[stream0].keys():
+                raise KeyError(f"Stream value '{vm_key}' not found in stream table")
+            stream_map[vm_key] = vm_val
+
+    # put units, from input table, where not specified
+    from_table = {}
+    for sval, sdisplay in stream_map.items():
+        unit, fmt = sdisplay
+        if unit is None:
+            table_unit = stream_table["Units"][sval]
+            from_table[sval] = (table_unit, fmt)
+    stream_map.update(from_table)
+
+    # build display vales map
+    result = {}
+    for stream_name in stream_names:
+        display_values = {}
+        for key, value in stream_table[stream_name].items():
+            if value == "-" or key not in stream_map:
+                continue
+            unit, spec = stream_map[key]
+            display_value = f"{{v:{spec}}}".format(v=value)
+            if unit:
+                display_value = f"{display_value} {unit}"
+            display_values[key] = display_value
+        if display_values:
+            result[stream_name] = display_values
+
+    return result
