@@ -1,0 +1,1053 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Python API &#8212; IDAES Connectivity Tool</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=a3416100" />
+    <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css?v=be8a1c11" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=f281be69"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="_static/togglebutton.js?v=4a39c7ea"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="_static/design-tabs.js?v=f930bc37"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api';</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="copyright" title="Copyright" href="copyright.html" />
+    <link rel="next" title="Command-line interface" href="cli.html" />
+    <link rel="prev" title="Example" href="example.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="_static/idaes-conn_logo.svg" class="logo__image only-light" alt="IDAES Connectivity Tool - Home"/>
+    <img src="_static/idaes-conn_logo.svg" class="logo__image only-dark pst-js-only" alt="IDAES Connectivity Tool - Home"/>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="index.html">
+                    Overview
+                </a>
+            </li>
+        </ul>
+        <ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html">Example</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli.html">Command-line interface</a></li>
+
+<li class="toctree-l1"><a class="reference internal" href="diagrams.html">Making diagrams</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mermaid_in_jupyter.html">Examples showing rendering connectivity of a model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="copyright.html">Copyright Notice</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/prommis/idaes-connectivity" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="Source repository"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/api.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Python API</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">Examples</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-connectivity">Model connectivity</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity"><code class="docutils literal notranslate"><span class="pre">Connectivity</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.units"><code class="docutils literal notranslate"><span class="pre">Connectivity.units</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.streams"><code class="docutils literal notranslate"><span class="pre">Connectivity.streams</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.connections"><code class="docutils literal notranslate"><span class="pre">Connectivity.connections</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.__init__"><code class="docutils literal notranslate"><span class="pre">Connectivity.__init__()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.stream_values"><code class="docutils literal notranslate"><span class="pre">Connectivity.stream_values</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.set_stream_value"><code class="docutils literal notranslate"><span class="pre">Connectivity.set_stream_value()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.set_stream_values_map"><code class="docutils literal notranslate"><span class="pre">Connectivity.set_stream_values_map()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.clear_stream_values"><code class="docutils literal notranslate"><span class="pre">Connectivity.clear_stream_values()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.unit_values"><code class="docutils literal notranslate"><span class="pre">Connectivity.unit_values</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.set_unit_value"><code class="docutils literal notranslate"><span class="pre">Connectivity.set_unit_value()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.set_unit_values_map"><code class="docutils literal notranslate"><span class="pre">Connectivity.set_unit_values_map()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.clear_unit_values"><code class="docutils literal notranslate"><span class="pre">Connectivity.clear_unit_values()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#formatters">Formatters</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#formatter-base-class">Formatter base class</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Formatter"><code class="docutils literal notranslate"><span class="pre">Formatter</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Formatter.write"><code class="docutils literal notranslate"><span class="pre">Formatter.write()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#csv-formatter">CSV formatter</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.CSV"><code class="docutils literal notranslate"><span class="pre">CSV</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.CSV.__init__"><code class="docutils literal notranslate"><span class="pre">CSV.__init__()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.CSV.write"><code class="docutils literal notranslate"><span class="pre">CSV.write()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mermaid-formatter">Mermaid formatter</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Mermaid"><code class="docutils literal notranslate"><span class="pre">Mermaid</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Mermaid.__init__"><code class="docutils literal notranslate"><span class="pre">Mermaid.__init__()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Mermaid.write"><code class="docutils literal notranslate"><span class="pre">Mermaid.write()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#jupyter">Jupyter</a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.jupyter.display_connectivity"><code class="docutils literal notranslate"><span class="pre">display_connectivity()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#d2-formatter">D2 formatter</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.D2"><code class="docutils literal notranslate"><span class="pre">D2</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.D2.__init__"><code class="docutils literal notranslate"><span class="pre">D2.__init__()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.D2.write"><code class="docutils literal notranslate"><span class="pre">D2.write()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#utility">Utility</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.util.get_stream_display_values"><code class="docutils literal notranslate"><span class="pre">get_stream_display_values()</span></code></a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="python-api">
+<h1>Python API<a class="headerlink" href="#python-api" title="Link to this heading">#</a></h1>
+<p>The Python API is contained in the <em>idaes_connectivity.base</em> module.
+The basic workflow is:</p>
+<ul class="simple">
+<li><p>Create an instance of the <a class="reference internal" href="#connectivity-class"><span class="std std-ref">Connectivity</span></a> class from a model.</p></li>
+<li><p>Format the connectivity information with one of the subclasses of the <a class="reference internal" href="#formatter-classes"><span class="std std-ref">Formatter</span></a> class, writing to a file
+or returning the value as a string.</p>
+<ul>
+<li><p>You can output CSV for viewing in a text editor or spreadsheet program.</p></li>
+<li><p>You can also output a text-based diagram specification for viewing in a tool such as Mermaid or D2. Find more details on the <a class="reference internal" href="diagrams.html"><span class="std std-doc">diagrams</span></a> page.</p></li>
+</ul>
+</li>
+</ul>
+<p>The rest of this page provides some <a class="reference internal" href="#api-examples"><span class="std std-ref">examples</span></a> of API usage and details of the <a class="reference internal" href="#connectivity-class"><span class="std std-ref">Connectivity</span></a> and <a class="reference internal" href="#formatter-classes"><span class="std std-ref">Formatter</span></a> classes.</p>
+<section id="examples">
+<span id="api-examples"></span><h2>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h2>
+<p>In these examples, we will assume we have an instance of Connectivity for a given model.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">idaes_connectivity.tests.example_flowsheet</span> <span class="kn">import</span> <span class="n">build</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">build</span><span class="p">()</span>
+<span class="n">conn</span> <span class="o">=</span> <span class="n">Connectivity</span><span class="p">(</span><span class="n">input_model</span><span class="o">=</span><span class="n">model</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Thenm, to create a CSV file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">idaes_connectivity.base</span> <span class="kn">import</span> <span class="n">Connectivity</span><span class="p">,</span> <span class="n">CSV</span>
+<span class="c1"># get connectivity</span>
+<span class="n">conn</span> <span class="o">=</span> 
+<span class="c1"># format as CSV</span>
+<span class="n">csv_fmt</span> <span class="o">=</span> <span class="n">CSV</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+<span class="n">csv_fmt</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;myfile.csv&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Creating D2 and Mermaid diagrams follows the same pattern:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">idaes_connectivity.base</span> <span class="kn">import</span> <span class="n">Mermaid</span><span class="p">,</span> <span class="n">D2</span>
+<span class="n">mermaid_fmt</span> <span class="o">=</span> <span class="n">Mermaid</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+<span class="n">mermaid_fmt</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;myfile.mmd&quot;</span><span class="p">)</span>
+<span class="n">d2_fmt</span> <span class="o">=</span> <span class="n">D2</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+<span class="n">d2_fmt</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;myfile.d2&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Returning as a string requires <code class="docutils literal notranslate"><span class="pre">None</span></code> as the file argument (full example to show output):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">idaes_connectivity.base</span> <span class="kn">import</span> <span class="n">D2</span><span class="p">,</span> <span class="n">Connectivity</span>
+<span class="kn">from</span> <span class="nn">idaes_connectivity.tests.example_flowsheet</span> <span class="kn">import</span> <span class="n">build</span>
+
+<span class="n">conn</span> <span class="o">=</span> <span class="n">Connectivity</span><span class="p">(</span><span class="n">input_model</span><span class="o">=</span><span class="n">build</span><span class="p">())</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">D2</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="kc">None</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Ouput:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">direction</span><span class="p">:</span> <span class="n">right</span>
+<span class="n">Unit_B</span><span class="p">:</span> <span class="n">M01</span>
+<span class="n">Unit_C</span><span class="p">:</span> <span class="n">H02</span>
+<span class="n">Unit_D</span><span class="p">:</span> <span class="n">F03</span>
+<span class="n">Unit_B</span> <span class="o">-&gt;</span> <span class="n">Unit_C</span>
+<span class="n">Unit_C</span> <span class="o">-&gt;</span> <span class="n">Unit_D</span>
+</pre></div>
+</div>
+<p>A convenience method, <code class="docutils literal notranslate"><span class="pre">display_connectivity</span></code>, displays the Mermaid diagram inline in a Jupyter Notebook.
+This requires JupyterLab 4.1 or Notebook 7.1, or later.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">idaes_connectivity.base</span> <span class="kn">import</span> <span class="n">Connectivity</span>
+<span class="kn">from</span> <span class="nn">idaes_connectivity.jupyter</span> <span class="kn">import</span> <span class="n">display_connectivity</span>
+
+<span class="n">conn</span> <span class="o">=</span> <span class="n">Connectivity</span><span class="p">(</span><span class="n">input_module</span><span class="o">=</span><span class="s2">&quot;idaes_connectivity.tests.example_flowsheet&quot;</span><span class="p">)</span>
+
+<span class="n">display_connectivity</span><span class="p">(</span><span class="n">conn</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Results are output in the next cell, in Markdown, like:</p>
+<a class="reference internal image-reference" href="_images/ex.svg"><img alt="_images/ex.svg" src="_images/ex.svg" style="height: 75px;" /></a>
+</section>
+<section id="model-connectivity">
+<span id="connectivity-class"></span><h2>Model connectivity<a class="headerlink" href="#model-connectivity" title="Link to this heading">#</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">Connectivity</span></code> class represents the connectivity of the model.
+It also provides some methods to add key/value pairs to the streams or units in the model.
+You can fetch values from the model itself using the utility function <a class="reference internal" href="#idaes_connectivity.util.get_stream_display_values" title="idaes_connectivity.util.get_stream_display_values"><code class="xref py py-func docutils literal notranslate"><span class="pre">idaes_connectivity.util.get_stream_display_values()</span></code></a>.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Connectivity">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">idaes_connectivity.base.</span></span><span class="sig-name descname"><span class="pre">Connectivity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">units</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">streams</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">connections</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">TextIO</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_module</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_flowsheet_attr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_build_func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'build'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit_class</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.Connectivity" title="Link to this definition">#</a></dt>
+<dd><p>Represent connectivity of a Pyomo/IDAES model.</p>
+<p>Once built, the connectivity is represented by
+three attributes, <cite>units</cite>, <cite>streams</cite>, and <cite>connections</cite>.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Connectivity.units">
+<span class="sig-name descname"><span class="pre">units</span></span><a class="headerlink" href="#idaes_connectivity.base.Connectivity.units" title="Link to this definition">#</a></dt>
+<dd><p>Dictionary with keys being the unit name (in the model instance) and
+values being the unit abbreviation (for Mermaid, etc.)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Connectivity.streams">
+<span class="sig-name descname"><span class="pre">streams</span></span><a class="headerlink" href="#idaes_connectivity.base.Connectivity.streams" title="Link to this definition">#</a></dt>
+<dd><p>Dictionary with keys being the stream name (in the model instance) and
+values being the stream abbreviation (for Mermaid, etc.)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Connectivity.connections">
+<span class="sig-name descname"><span class="pre">connections</span></span><a class="headerlink" href="#idaes_connectivity.base.Connectivity.connections" title="Link to this definition">#</a></dt>
+<dd><p>Dictionary with keys being the stream abbreviation and values being a
+list of length 2, each element of which can contain a unit abbreviation
+or be empty. If the first item in the list has a unit abbreviation, then
+this stream connects to the outlet of that unit; similarly, if the 2nd
+item has a unit abbr then this stream connects to the inlet.
+Thus each item in this dict describes an arc, or a line in a diagram,
+with a stream connecting two units (usual case) or coming into or out of
+a unit as an unconnected feed or outlet for the flowsheet (possible).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Connectivity.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">units</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">streams</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">connections</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">TextIO</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_module</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_flowsheet_attr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_build_func</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'build'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit_class</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.Connectivity.__init__" title="Link to this definition">#</a></dt>
+<dd><p>Create from existing data or one of the valid input types.</p>
+<p>Either all three of units, streams, and connections must be given OR
+one of the <cite>input_*</cite> arguments must not be None. They will be looked
+at in the order: model, module, file, data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>units</strong> – See attributes description</p></li>
+<li><p><strong>streams</strong> – See attributes description</p></li>
+<li><p><strong>connections</strong> – See attributes description</p></li>
+<li><p><strong>input_file</strong> – Input CSV file</p></li>
+<li><p><strong>input_data</strong> – List of input rows.</p></li>
+<li><p><strong>input_module</strong> – Module from which to load model</p></li>
+<li><p><strong>input_model</strong> – Existing model object</p></li>
+<li><p><strong>model_flowsheet_attr</strong> – Attribute on model object with flowsheet. If empty,
+use the model object as the flowsheet.</p></li>
+<li><p><strong>model_build_func</strong> – Name of function in <cite>input_module</cite> to invoke to build
+and return the model object.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>ModelLoadError</strong> – Couldn’t load the model/module</p></li>
+<li><p><strong>ValueError</strong> – Invalid inputs</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Connectivity.stream_values">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">stream_values</span></span><a class="headerlink" href="#idaes_connectivity.base.Connectivity.stream_values" title="Link to this definition">#</a></dt>
+<dd><p>Get current stream values.</p>
+<p>This returns a copy, that can be modified without changing the underlying
+values in the class.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Connectivity.set_stream_value">
+<span class="sig-name descname"><span class="pre">set_stream_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stream_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.Connectivity.set_stream_value" title="Link to this definition">#</a></dt>
+<dd><p>Set a value for a stream.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stream_name</strong> – Name of the stream</p></li>
+<li><p><strong>key</strong> – Name of the value</p></li>
+<li><p><strong>value</strong> – The value. Accepts Pyomo value objects with a <cite>.value</cite> attribute, or
+“plain” values (string or numeric).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>KeyError</strong> – If the <cite>stream_name</cite> is not a valid stream.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Connectivity.set_stream_values_map">
+<span class="sig-name descname"><span class="pre">set_stream_values_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stream_values_map</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.Connectivity.set_stream_values_map" title="Link to this definition">#</a></dt>
+<dd><p>Set multiple stream values using a mapping.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>stream_values_map</strong> – Mapping with keys being stream names and values being
+another mapping of stream value names to the value.</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>KeyError</strong> – If any of the stream names is not a valid stream.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Connectivity.clear_stream_values">
+<span class="sig-name descname"><span class="pre">clear_stream_values</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.Connectivity.clear_stream_values" title="Link to this definition">#</a></dt>
+<dd><p>Remove all stream values.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Connectivity.unit_values">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">unit_values</span></span><a class="headerlink" href="#idaes_connectivity.base.Connectivity.unit_values" title="Link to this definition">#</a></dt>
+<dd><p>Get current unit values.</p>
+<p>This returns a copy, that can be modified without changing the underlying
+values in the class.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Connectivity.set_unit_value">
+<span class="sig-name descname"><span class="pre">set_unit_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">unit_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.Connectivity.set_unit_value" title="Link to this definition">#</a></dt>
+<dd><p>Set a value for a unit.
+This method has the same semantics as <a class="reference internal" href="#idaes_connectivity.base.Connectivity.set_stream_value" title="idaes_connectivity.base.Connectivity.set_stream_value"><code class="xref py py-meth docutils literal notranslate"><span class="pre">set_stream_value()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Connectivity.set_unit_values_map">
+<span class="sig-name descname"><span class="pre">set_unit_values_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">unit_values_map</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.Connectivity.set_unit_values_map" title="Link to this definition">#</a></dt>
+<dd><p>Set multiple unit values using a mapping.
+This method has the same semantics as <a class="reference internal" href="#idaes_connectivity.base.Connectivity.set_stream_values_map" title="idaes_connectivity.base.Connectivity.set_stream_values_map"><code class="xref py py-meth docutils literal notranslate"><span class="pre">set_stream_values_map()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Connectivity.clear_unit_values">
+<span class="sig-name descname"><span class="pre">clear_unit_values</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.Connectivity.clear_unit_values" title="Link to this definition">#</a></dt>
+<dd><p>Remove all unit values.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="formatters">
+<span id="formatter-classes"></span><h2>Formatters<a class="headerlink" href="#formatters" title="Link to this heading">#</a></h2>
+<p>All formatters have a <code class="docutils literal notranslate"><span class="pre">write</span></code> method, defined in their base class, <code class="docutils literal notranslate"><span class="pre">Formatter</span></code>.</p>
+<p>The basic usage is:</p>
+<ul class="simple">
+<li><p>Create the formatter, passing an instance of <a class="reference internal" href="#connectivity-class"><span class="std std-ref">Model connectivity</span></a>.</p></li>
+<li><p>Call <code class="docutils literal notranslate"><span class="pre">formatter.write()</span></code> to generate the text.</p></li>
+</ul>
+<section id="formatter-base-class">
+<h3>Formatter base class<a class="headerlink" href="#formatter-base-class" title="Link to this heading">#</a></h3>
+<dl class="py class">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Formatter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">idaes_connectivity.base.</span></span><span class="sig-name descname"><span class="pre">Formatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connectivity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#idaes_connectivity.base.Connectivity" title="idaes_connectivity.base.Connectivity"><span class="pre">Connectivity</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.Formatter" title="Link to this definition">#</a></dt>
+<dd><p>Base class for formatters, which write out the matrix in a way that can be
+more easily visualized or processed by other tools.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Formatter.write">
+<em class="property"><span class="pre">abstract</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">TextIO</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#idaes_connectivity.base.Formatter.write" title="Link to this definition">#</a></dt>
+<dd><p>Write the formatted output.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>output_file</strong> – The output file. It can be a filename or file object.
+The special value <cite>None</cite> means return the text as a string.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>If <cite>None</cite> was given as the <em>output_file</em>, return the text as a string.
+Otherwise, return None.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="csv-formatter">
+<h3>CSV formatter<a class="headerlink" href="#csv-formatter" title="Link to this heading">#</a></h3>
+<p>The CSV formatter writes out text as comma-separated values.
+It ignores the <code class="docutils literal notranslate"><span class="pre">direction</span></code> argument in the <code class="docutils literal notranslate"><span class="pre">Formatter</span></code> base class constructor.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="idaes_connectivity.base.CSV">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">idaes_connectivity.base.</span></span><span class="sig-name descname"><span class="pre">CSV</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connectivity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#idaes_connectivity.base.Connectivity" title="idaes_connectivity.base.Connectivity"><span class="pre">Connectivity</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.CSV" title="Link to this definition">#</a></dt>
+<dd><p>Write out the data as CSV.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.CSV.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connectivity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#idaes_connectivity.base.Connectivity" title="idaes_connectivity.base.Connectivity"><span class="pre">Connectivity</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.CSV.__init__" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.CSV.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">TextIO</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#idaes_connectivity.base.CSV.write" title="Link to this definition">#</a></dt>
+<dd><p>Write the formatted output.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>output_file</strong> – The output file. It can be a filename or file object.
+The special value <cite>None</cite> means return the text as a string.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>If <cite>None</cite> was given as the <em>output_file</em>, return the text as a string.
+Otherwise, return None.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="mermaid-formatter">
+<h3>Mermaid formatter<a class="headerlink" href="#mermaid-formatter" title="Link to this heading">#</a></h3>
+<p>The Mermaid formatter writes out a Mermaid text description.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Mermaid">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">idaes_connectivity.base.</span></span><span class="sig-name descname"><span class="pre">Mermaid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connectivity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#idaes_connectivity.base.Connectivity" title="idaes_connectivity.base.Connectivity"><span class="pre">Connectivity</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.Mermaid" title="Link to this definition">#</a></dt>
+<dd><p>Create output in Mermaid syntax.</p>
+<p>See <a class="reference external" href="https://mermaid.js.org/">https://mermaid.js.org/</a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Mermaid.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connectivity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#idaes_connectivity.base.Connectivity" title="idaes_connectivity.base.Connectivity"><span class="pre">Connectivity</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.Mermaid.__init__" title="Link to this definition">#</a></dt>
+<dd><p>Constructor. See class <cite>defaults</cite> for default values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>connectivity</strong> (<a class="reference internal" href="#idaes_connectivity.base.Connectivity" title="idaes_connectivity.base.Connectivity"><em>Connectivity</em></a>) – Model connectivity</p></li>
+<li><p><strong>kwargs</strong> (<em>dict</em>) – See <cite>Mermaid.defaults</cite> for keywords</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – Invalid <cite>direction</cite> argument.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.Mermaid.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">TextIO</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#idaes_connectivity.base.Mermaid.write" title="Link to this definition">#</a></dt>
+<dd><p>Write Mermaid text description.</p>
+</dd></dl>
+
+</dd></dl>
+
+<section id="jupyter">
+<h4>Jupyter<a class="headerlink" href="#jupyter" title="Link to this heading">#</a></h4>
+<p>Mermaid is supported by newer versions of Jupyter Notebooks and Jupyter Lab.
+The <em>display_connectivity</em> function allows one to easily display a diagram in a Jupyter notebook.
+This function is also shown in the <a class="reference internal" href="example.html"><span class="std std-doc">Jupyter Notebook example</span></a>.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="idaes_connectivity.jupyter.display_connectivity">
+<span class="sig-prename descclassname"><span class="pre">idaes_connectivity.jupyter.</span></span><span class="sig-name descname"><span class="pre">display_connectivity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">conn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#idaes_connectivity.base.Connectivity" title="idaes_connectivity.base.Connectivity"><span class="pre">Connectivity</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mermaid_options</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jb</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Markdown</span></span></span><a class="headerlink" href="#idaes_connectivity.jupyter.display_connectivity" title="Link to this definition">#</a></dt>
+<dd><p>Display connectivity in a Jupyter Notebook using the built-in MermaidJS capabilities.
+Requires JupyterLab &gt;= 4.1 or Jupyter Notebook &gt;= 7.1.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>conn</strong> – Constructed Connectivity of a model</p></li>
+<li><p><strong>input_model</strong> – If present, create Connectivity instance from this model instead</p></li>
+<li><p><strong>mermaid_options</strong> – Keyword args for {py:class}`idaes_connectivity.base.Mermaid`</p></li>
+<li><p><strong>jb</strong> – Workaround for rendering in Jupyterbook</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Markdown object, containing Mermaid graph, for Jupyter Notebook to render</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p>This function</p>
+</section>
+</section>
+<section id="d2-formatter">
+<h3>D2 formatter<a class="headerlink" href="#d2-formatter" title="Link to this heading">#</a></h3>
+<p>The D2 formatter writes out a D2 text description.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="idaes_connectivity.base.D2">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">idaes_connectivity.base.</span></span><span class="sig-name descname"><span class="pre">D2</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connectivity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#idaes_connectivity.base.Connectivity" title="idaes_connectivity.base.Connectivity"><span class="pre">Connectivity</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.D2" title="Link to this definition">#</a></dt>
+<dd><p>Create output in Terraform D2 syntax.</p>
+<p>See <a class="reference external" href="https://d2lang.com">https://d2lang.com</a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.D2.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">connectivity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#idaes_connectivity.base.Connectivity" title="idaes_connectivity.base.Connectivity"><span class="pre">Connectivity</span></a></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#idaes_connectivity.base.D2.__init__" title="Link to this definition">#</a></dt>
+<dd><p>Constructor.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>connectivity</strong> (<a class="reference internal" href="#idaes_connectivity.base.Connectivity" title="idaes_connectivity.base.Connectivity"><em>Connectivity</em></a>) – Model connectivity</p></li>
+<li><p><strong>kwargs</strong> (<em>dict</em>) – See <cite>D2.defaults</cite> for keywords</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – Invalid direction.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="idaes_connectivity.base.D2.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">TextIO</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#idaes_connectivity.base.D2.write" title="Link to this definition">#</a></dt>
+<dd><p>Write D2 text description.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+<section id="utility">
+<span id="utility-functions"></span><h2>Utility<a class="headerlink" href="#utility" title="Link to this heading">#</a></h2>
+<p>Utility functions.</p>
+<p id="module-idaes_connectivity.util">Utility functions and classes.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="idaes_connectivity.util.get_stream_display_values">
+<span class="sig-prename descclassname"><span class="pre">idaes_connectivity.util.</span></span><span class="sig-name descname"><span class="pre">get_stream_display_values</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stream_table</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value_map</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Pattern</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#idaes_connectivity.util.get_stream_display_values" title="Link to this definition">#</a></dt>
+<dd><p>Select and format stream values in the <cite>stream_table</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stream_table</strong> – A pandas.DataFrame with streams in the columns and values
+in the rows. The first column is the Units for the value.
+This is the default format returned by the IDAES
+flowsheet <cite>stream_table()</cite> method.</p></li>
+<li><p><strong>value_map</strong> – <p>Select and format values using this mapping from a stream value name
+(or regular expression that will match names) to a tuple with the
+units and format specifier.
+For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>    { &quot;temperature&quot;: (&quot;K&quot;, &quot;.3g&quot;),
+    re.compile(&quot;conc_mass_comp.*&quot;): (&quot;kg/m^3&quot;, &quot;.4g&quot;) }
+
+If the units are None, the value from the &quot;Units&quot; column
+in the stream table is used. Also, giving a string instead of a
+tuple will set the units to None.
+A shorthand for a Pattern is to make the first character in
+the name of the value whatever `re_prefix_chr` is set to,
+by default a tilde (&quot;~&quot;) character.
+
+Thus, the following is equivalent to the above::
+
+    {&quot;temperature&quot;: &quot;.3g&quot;,
+     &quot;~conc.mass.comp.*&quot;: &quot;.4g&quot;}
+</pre></div>
+</div>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>Mapping with keys being stream names and values being another
+mapping of stream value names to the formatted display value.
+For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;stream1&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="s2">&quot;305.128 K&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;conc_mass_comp HSO4&quot;</span><span class="p">:</span> <span class="s2">&quot;2.71798 kg/m^3&quot;</span> <span class="p">},</span>
+ <span class="s2">&quot;stream2&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="s2">&quot;305.128 K&quot;</span><span class="p">,</span>
+     <span class="s2">&quot;conc_mass_comp HSO4&quot;</span><span class="p">:</span> <span class="s2">&quot;2.71798 kg/m^3&quot;</span> <span class="p">},</span>
+  <span class="o">...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>KeyError</strong> – Stream name given as a string is not found</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+    <script type="text/x-thebe-config">
+    {
+        requestKernel: true,
+        binderOptions: {
+            repo: "binder-examples/jupyter-stacks-datascience",
+            ref: "master",
+        },
+        codeMirrorConfig: {
+            theme: "abcdef",
+            mode: "python"
+        },
+        kernelOptions: {
+            name: "python3",
+            path: "./."
+        },
+        predefinedOutput: true
+    }
+    </script>
+    <script>kernelName = 'python3'</script>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="example.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Example</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="cli.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Command-line interface</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">Examples</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#model-connectivity">Model connectivity</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity"><code class="docutils literal notranslate"><span class="pre">Connectivity</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.units"><code class="docutils literal notranslate"><span class="pre">Connectivity.units</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.streams"><code class="docutils literal notranslate"><span class="pre">Connectivity.streams</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.connections"><code class="docutils literal notranslate"><span class="pre">Connectivity.connections</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.__init__"><code class="docutils literal notranslate"><span class="pre">Connectivity.__init__()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.stream_values"><code class="docutils literal notranslate"><span class="pre">Connectivity.stream_values</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.set_stream_value"><code class="docutils literal notranslate"><span class="pre">Connectivity.set_stream_value()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.set_stream_values_map"><code class="docutils literal notranslate"><span class="pre">Connectivity.set_stream_values_map()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.clear_stream_values"><code class="docutils literal notranslate"><span class="pre">Connectivity.clear_stream_values()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.unit_values"><code class="docutils literal notranslate"><span class="pre">Connectivity.unit_values</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.set_unit_value"><code class="docutils literal notranslate"><span class="pre">Connectivity.set_unit_value()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.set_unit_values_map"><code class="docutils literal notranslate"><span class="pre">Connectivity.set_unit_values_map()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Connectivity.clear_unit_values"><code class="docutils literal notranslate"><span class="pre">Connectivity.clear_unit_values()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#formatters">Formatters</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#formatter-base-class">Formatter base class</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Formatter"><code class="docutils literal notranslate"><span class="pre">Formatter</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Formatter.write"><code class="docutils literal notranslate"><span class="pre">Formatter.write()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#csv-formatter">CSV formatter</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.CSV"><code class="docutils literal notranslate"><span class="pre">CSV</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.CSV.__init__"><code class="docutils literal notranslate"><span class="pre">CSV.__init__()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.CSV.write"><code class="docutils literal notranslate"><span class="pre">CSV.write()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mermaid-formatter">Mermaid formatter</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Mermaid"><code class="docutils literal notranslate"><span class="pre">Mermaid</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Mermaid.__init__"><code class="docutils literal notranslate"><span class="pre">Mermaid.__init__()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.Mermaid.write"><code class="docutils literal notranslate"><span class="pre">Mermaid.write()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#jupyter">Jupyter</a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.jupyter.display_connectivity"><code class="docutils literal notranslate"><span class="pre">display_connectivity()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#d2-formatter">D2 formatter</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.D2"><code class="docutils literal notranslate"><span class="pre">D2</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.D2.__init__"><code class="docutils literal notranslate"><span class="pre">D2.__init__()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.base.D2.write"><code class="docutils literal notranslate"><span class="pre">D2.write()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#utility">Utility</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#idaes_connectivity.util.get_stream_display_values"><code class="docutils literal notranslate"><span class="pre">get_stream_display_values()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By The PrOMMiS Project
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © <a href="copyright.html">Copyright 2024 - 2025</a>.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
