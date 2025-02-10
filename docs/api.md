@@ -77,11 +77,15 @@ Results are output in the next cell, in Markdown, like:
 (connectivity-class)=
 ## Model connectivity
 The `Connectivity` class represents the connectivity of the model.
+It also provides some methods to add key/value pairs to the streams or units in the model.
+You can fetch values from the model itself using the utility function {py:func}`idaes_connectivity.util.get_stream_display_values`.
 
 ```{eval-rst}
 .. autoclass:: idaes_connectivity.base.Connectivity
     :class-doc-from: class
-    :members: __init__, as_table
+    :members: __init__, as_table, stream_values, set_stream_value, set_stream_values_map, clear_stream_values,    
+              unit_values, set_unit_value, set_unit_values_map, clear_unit_values
+    :member-order: bysource
 ```
 
 (formatter-classes)=
@@ -142,4 +146,14 @@ The D2 formatter writes out a D2 text description.
 .. autoclass:: idaes_connectivity.base.D2
   :class-doc-from: class
   :members: __init__, write
+```
+
+(utility-functions)=
+## Utility
+
+Utility functions.
+
+```{eval-rst}
+.. automodule:: idaes_connectivity.util
+   :members: get_stream_display_values
 ```

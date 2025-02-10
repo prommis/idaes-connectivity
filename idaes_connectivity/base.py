@@ -178,6 +178,18 @@ class Connectivity:
             self._stream_values = {k: {} for k in self.streams}
             self.connections = self._build_connections()
 
+    @property
+    def stream_values(self):
+        """Get current stream values.
+
+        This returns a copy, that can be modified without changing the underlying
+        values in the class.
+        """
+        return {
+            k1: {k2: v2.value for k2, v2 in v1.items()}
+            for k1, v1 in self._stream_values.items()
+        }
+
     def set_stream_value(self, stream_name: str, key: str, value):
         """Set a value for a stream.
 
@@ -213,6 +225,18 @@ class Connectivity:
         """Remove all stream values."""
         self._stream_values = {}
 
+    @property
+    def unit_values(self):
+        """Get current unit values.
+
+        This returns a copy, that can be modified without changing the underlying
+        values in the class.
+        """
+        return {
+            k1: {k2: v2.value for k2, v2 in v1.items()}
+            for k1, v1 in self._unit_values.items()
+        }
+
     def set_unit_value(self, unit_name: str, key: str, value):
         """Set a value for a unit.
         This method has the same semantics as :meth:`set_stream_value`.
@@ -247,30 +271,6 @@ class Connectivity:
             KeyError: If `unit_name` does not correspond to a unit.
         """
         self._unit_classes[unit_name] = class_name
-
-    @property
-    def stream_values(self):
-        """Get current stream values.
-
-        This returns a copy, that can be modified without changing the underlying
-        values in the class.
-        """
-        return {
-            k1: {k2: v2.value for k2, v2 in v1.items()}
-            for k1, v1 in self._stream_values.items()
-        }
-
-    @property
-    def unit_values(self):
-        """Get current unit values.
-
-        This returns a copy, that can be modified without changing the underlying
-        values in the class.
-        """
-        return {
-            k1: {k2: v2.value for k2, v2 in v1.items()}
-            for k1, v1 in self._unit_values.items()
-        }
 
     def get_unit_class(self, name: str):
         """Get class for a unit.
@@ -700,7 +700,7 @@ class D2(Formatter):
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
         """Write D2 text description."""
-        unit_icon = UnitIcon(IdaesPaths().icons)
+        unit_icon = UnitIcon(IdaesPaths.icons())
         feed_num, sink_num = 1, 1
         f = self._get_output_stream(output_file)
         d2_dir = "right" if self._direction == Direction.RIGHT else "down"

@@ -134,14 +134,14 @@ def test_unit_values_formatter(klass):
 @pytest.mark.parametrize("klass", (Mermaid, D2))
 def test_unit_and_stream_values_formatter(klass):
     _, conn = setup()
-    s_test_key, s_test_val = "test_value", 123
+    s_test_key, s_test_val = "s_test_value", 123
     conn.set_stream_value(STREAM_1, s_test_key, s_test_val)
-    u_test_key, u_test_val, u_test_unit_class = "test_value", 123, "foobar"
+    u_test_key, u_test_val, u_test_unit_class = "u_test_value", 123, "foobar"
     conn.set_unit_value(UNIT_1, u_test_key, u_test_val)
     conn.set_unit_class(UNIT_1, u_test_unit_class)
     for stream_labels in (True, False):
         for uc_flag in (False, True):
-            s_found_key, u_found_key, u_found_class = False, False, False
+            s_found_key, u_found_key, u_found_class = 0, 0, 0
             print(
                 f"class={klass.__name__} stream_labels={stream_labels} unit_class={uc_flag}"
             )
@@ -156,14 +156,13 @@ def test_unit_and_stream_values_formatter(klass):
                 print(line)
                 if s_test_key in line:
                     assert str(s_test_val) in line
-                    s_found_key = True
+                    s_found_key += 1
                 if u_test_key in line:
                     assert str(u_test_val) in line
-                    u_found_key = True
-                if u_test_unit_class in line:
-                    u_found_class = True
+                    u_found_key += 1
+                if "::" + u_test_unit_class in line:
+                    u_found_class += 1
 
-            assert s_found_key
-            assert u_found_key
-            # class should be there if display flag is on, else not
-            assert u_found_class == uc_flag
+            assert s_found_key == 1
+            assert u_found_key == 1
+            assert u_found_class == (1 if uc_flag else 0)
