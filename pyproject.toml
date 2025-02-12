@@ -39,6 +39,9 @@ dependencies = [
 [project.scripts]
 idaes-conn = "idaes_connectivity.cli:main"
 
+[tool.setuptools]
+packages = ["idaes_connectivity"]
+
 [tool.setuptools_scm]
 
 [tool.pylint.main]
