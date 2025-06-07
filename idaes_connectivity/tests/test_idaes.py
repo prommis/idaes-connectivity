@@ -20,11 +20,6 @@ from idaes_connectivity.base import Connectivity, Mermaid
 
 
 class AlwaysAvailableIapws95ParameterBlock(iapws95.Iapws95ParameterBlock):
-    """
-    A custom Iapws95ParameterBlock that always returns True for the
-    `available` method.
-    """
-
     def available(self):
         return True
 
