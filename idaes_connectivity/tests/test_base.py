@@ -36,7 +36,7 @@ UNIT_1 = "M01"
 
 def setup():
     model = example_flowsheet.build()
-    conn = Connectivity(input_model=model.fs, unit_class=True)
+    conn = Connectivity(input_model=model.fs)
     return model, conn
 
 
