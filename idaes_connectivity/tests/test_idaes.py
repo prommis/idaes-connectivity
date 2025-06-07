@@ -11,6 +11,8 @@ from pyomo.network import Arc, Port
 from idaes.core import FlowsheetBlock
 from idaes.models.unit_models import Feed, Product, Pump
 from idaes.core.util.model_statistics import degrees_of_freedom
+from idaes.core.base.process_base import useDefault
+
 from idaes.models.properties import iapws95
 
 # pkg
@@ -20,22 +22,25 @@ from idaes_connectivity.base import Connectivity, Mermaid
 def idaes_model(use_rangeset=False):
     m = ConcreteModel()
     m.fs = FlowsheetBlock(dynamic=False)
-    m.fs.water_properties = iapws95.Iapws95ParameterBlock()
-    m.fs.feed = Feed(property_package=m.fs.water_properties)
-    m.fs.product = Product(property_package=m.fs.water_properties)
+    ppkg = iapws95.Iapws95ParameterBlock()
+    ppkg.available = lambda: True  # even if not..
+    m.fs.water_properties = ppkg
+    m.fs = FlowsheetBlock(dynamic=False)
+    m.fs.feed = Feed(property_package=ppkg)
+    m.fs.product = Product(property_package=ppkg)
 
     if use_rangeset:
         number_of_pumps = 2
         m.fs.pump_list = RangeSet(1, number_of_pumps)
-        m.fs.pump = Pump(m.fs.pump_list, property_package=m.fs.water_properties)
+        m.fs.pump = Pump(m.fs.pump_list, property_package=ppkg)
         m.fs.feed_to_p1 = Arc(source=m.fs.feed.outlet, destination=m.fs.pump[1].inlet)
         m.fs.p1_to_p2 = Arc(source=m.fs.pump[1].outlet, destination=m.fs.pump[2].inlet)
         m.fs.p2_to_product = Arc(
             source=m.fs.pump[2].outlet, destination=m.fs.product.inlet
         )
     else:
-        m.fs.pump_01 = Pump(property_package=m.fs.water_properties)
-        m.fs.pump_02 = Pump(property_package=m.fs.water_properties)
+        m.fs.pump_01 = Pump(property_package=ppkg)
+        m.fs.pump_02 = Pump(property_package=ppkg)
         m.fs.feed_to_p1 = Arc(source=m.fs.feed.outlet, destination=m.fs.pump_01.inlet)
         m.fs.p1_to_p2 = Arc(source=m.fs.pump_01.outlet, destination=m.fs.pump_02.inlet)
         m.fs.p2_to_product = Arc(
