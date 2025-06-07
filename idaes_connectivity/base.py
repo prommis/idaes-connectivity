@@ -588,12 +588,12 @@ class Mermaid(Formatter):
 
     def _get_mermaid_units(self):
         for name, abbr in self._conn.units.items():
-            name = self._quote_name(name)
+            qname = self._quote_name(name)
             if self._unit_class:
                 klass = self._conn.get_unit_class(name)
-                display_name = f"{name}::{klass}"
+                display_name = f"{qname}::{klass}"
             else:
-                display_name = name
+                display_name = qname
             if self._unit_values:
                 values = self._conn.unit_values[name]
                 if values:
