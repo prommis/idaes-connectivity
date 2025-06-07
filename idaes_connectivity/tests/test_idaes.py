@@ -19,11 +19,20 @@ from idaes.models.properties import iapws95
 from idaes_connectivity.base import Connectivity, Mermaid
 
 
+class AlwaysAvailableIapws95ParameterBlock(iapws95.Iapws95ParameterBlock):
+    """
+    A custom Iapws95ParameterBlock that always returns True for the
+    `available` method.
+    """
+
+    def available(self):
+        return True
+
+
 def idaes_model(use_rangeset=False):
     m = ConcreteModel()
     m.fs = FlowsheetBlock(dynamic=False)
-    m.fs.water_properties = iapws95.Iapws95ParameterBlock()
-    m.fs.water_properties.available = lambda: True  # even if not..
+    m.fs.water_properties = AlwaysAvailableIapws95ParameterBlock()
     m.fs.feed = Feed(property_package=m.fs.water_properties)
     m.fs.product = Product(property_package=m.fs.water_properties)
 
