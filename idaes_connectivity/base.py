@@ -100,7 +100,6 @@ class Connectivity:
         input_model=None,
         model_flowsheet_attr: str = "",
         model_build_func: str = "build",
-        unit_class=False,
     ):
         """Create from existing data or one of the valid input types.
 
@@ -589,6 +588,7 @@ class Mermaid(Formatter):
 
     def _get_mermaid_units(self):
         for name, abbr in self._conn.units.items():
+            name = self._quote_name(name)
             if self._unit_class:
                 klass = self._conn.get_unit_class(name)
                 display_name = f"{name}::{klass}"
@@ -602,8 +602,12 @@ class Mermaid(Formatter):
             yield f"{abbr}[{display_name}]"
 
     def _get_mermaid_streams(self):
+        """Get (possibly cleaned up) stream abbr. and names"""
         for name, abbr in self._conn.streams.items():
-            yield abbr, f"{abbr}([{name}])"
+            yield abbr, f"{abbr}([{self._quote_name(name)}])"
+
+    def _quote_name(self, name):
+        return '"' + name + '"'
 
     def _get_connections(self):
         connections = []
