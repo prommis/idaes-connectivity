@@ -311,6 +311,8 @@ class Connectivity:
         streams = {}
         n = 3  # pick numbers that match spreadsheet row numbers
         for row in self._rows:
+            if not row:
+                continue
             s = row[0]
             abbr = f"Stream_{n}"
             streams[s] = abbr
@@ -322,6 +324,8 @@ class Connectivity:
         n_cols = len(self._header)
         connections = {s: [None, None] for s in streams.values()}
         for i, row in enumerate(self._rows):
+            if not row:
+                continue
             stream_name = row[0]
             for col in range(1, n_cols):
                 conn = row[col]
