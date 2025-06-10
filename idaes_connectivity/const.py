@@ -21,6 +21,7 @@ class OutputFormats(Enum):
     MERMAID = "mermaid"
     CSV = "csv"
     D2 = "d2"
+    HTML = "html"
 
 
 class Direction(Enum):
