@@ -31,6 +31,42 @@ SCRIPT_NAME = "idaes-conn"
 _log = logging.getLogger(SCRIPT_NAME)
 
 
+class MermaidHtml(ic.Formatter):
+    def __init__(self, conn, **mmd_opt):
+        self._mmd = ic.Mermaid(conn, **mmd_opt)
+
+    def write(self, output_file):
+        """Write MermaidJS HTML to output file.
+
+        Args:
+            output_file (str or file-like): Output file path or file-like object
+        """
+        f = self._get_output_stream(output_file)
+        self._write_html(f)
+
+    def _write_html(self, f):
+        """Write MermaidJS HTML to file-like object.
+
+        Args:
+            f (file-like): Output file-like object
+        """
+        if _log.isEnabledFor(logging.DEBUG):
+            filename = f.name if hasattr(f, "name") else str(f)
+            _log.debug(f"write:start :: MermaidJS HTML to '{filename}'")
+        f.write("<!DOCTYPE html>\n")
+        f.write("<html>\n<head>\n")
+        f.write(
+            "<script src='https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js'></script>\n"
+        )
+        f.write("</head>\n<body>\n")
+        f.write("<div class='mermaid'>\n")
+        f.write(self._mmd.write(None))
+        f.write("\n</div>\n")
+        f.write("</body>\n</html>\n")
+        if _log.isEnabledFor(logging.DEBUG):
+            _log.debug(f"write:end :: MermaidJS HTML to '{filename}'")
+
+
 def infer_output_file(ifile: str, to_, input_file=None):
     to_fmt = OutputFormats(to_)  # arg checked already
     ext = {
@@ -121,6 +157,8 @@ def get_formatter(conn: object, fmt: str, options=None) -> ic.Formatter:
         clazz = ic.D2
     elif fmt == OutputFormats.MERMAID.value:
         clazz = ic.Mermaid
+    elif fmt == OutputFormats.HTML.value:
+        clazz = MermaidHtml
     else:
         raise ValueError(f"Unrecognized output format: {fmt}")
     return clazz(conn, **options)
