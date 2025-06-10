@@ -308,9 +308,9 @@ def main(command_line=None):
             m = re.match(
                 r"[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*", args.source
             )
-            if m.span() != (0, len(args.source)):
+            if (m is None) or m.span() != (0, len(args.source)):
                 print(
-                    "Source looks like a module name, but is not valid: {args.source}"
+                    f"Source looks like a module name, but is not valid: {args.source}"
                 )
                 return 2
             main_method = module_main
