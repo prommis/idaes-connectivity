@@ -52,7 +52,7 @@ class MermaidHtml(ic.Formatter):
         """
         if _log.isEnabledFor(logging.DEBUG):
             filename = f.name if hasattr(f, "name") else str(f)
-            _log.debug(f"write:start :: MermaidJS HTML to '{filename}'")
+            _log.debug(f"_begin_ write MermaidJS HTML to '{filename}'")
         f.write("<!DOCTYPE html>\n")
         f.write("<html>\n<head>\n")
         f.write(
@@ -64,7 +64,7 @@ class MermaidHtml(ic.Formatter):
         f.write("\n</div>\n")
         f.write("</body>\n</html>\n")
         if _log.isEnabledFor(logging.DEBUG):
-            _log.debug(f"write:end :: MermaidJS HTML to '{filename}'")
+            _log.debug(f"_end_ write MermaidJS HTML to '{filename}'")
 
 
 def infer_output_file(ifile: str, to_, input_file=None):
@@ -92,7 +92,7 @@ def csv_main(args) -> int:
     Returns:
         int: Code for sys.exit()
     """
-    _log.info(f"[begin] create from matrix. args={args}")
+    _log.info(f"_begin_ create from matrix. args={args}")
 
     if args.ofile is None:
         args.ofile = infer_output_file(args.source, args.to)
@@ -107,10 +107,10 @@ def csv_main(args) -> int:
         formatter = get_formatter(conn, args.to)
         formatter.write(args.ofile)
     except (RuntimeError, ic.DataLoadError) as err:
-        _log.info("[ end ] create from matrix (1)")
+        _log.info("_end_ create from matrix (1)")
         _log.error(f"{err}")
         return 1
-    _log.info("[ end ] create from matrix")
+    _log.info("_end_ create from matrix")
 
     return 0
 
@@ -124,8 +124,59 @@ def module_main(args) -> int:
     Returns:
         int: Code for sys.exit()
     """
-    _log.info("[begin] create from Python model")
+    _log.info("_begin_ create from Python model")
+    options, conn_kw = _code_main(args)
+    try:
+        conn = ic.Connectivity(input_module=args.source, **conn_kw)
+        formatter = get_formatter(conn, args.to, options)
+        formatter.write(args.ofile)
+    except (RuntimeError, ic.ModelLoadError) as err:
+        _log.info("_end_ create from Python model (1)")
+        _log.error(f"{err}")
+        return 1
+    _log.info("_end_ create from Python model")
 
+    return 0
+
+
+def py_main(args) -> int:
+    """CLI function for creating connectivity/graph from a Python module.
+
+    Args:
+        args: Parsed args from ArgumentParser
+    Returns:
+        int: Code for sys.exit()
+    """
+    _log.info("_begin_ create from Python script")
+    options, conn_kw = _code_main(args)
+    script_globals = {}
+    try:
+        with open(args.source, "r") as f:
+            exec(f.read(), script_globals)
+    except Exception as err:
+        _log.info("_end_ create from Python module (1)")
+        _log.error("Error executing Python file: %s", str(err))
+        return -1
+    try:
+        model = eval(args.build, script_globals)()
+    except Exception as err:
+        _log.info("_end_ create from Python module (1)")
+        _log.error("Error evaluating Python file: %s", str(err))
+        return -1
+    try:
+        conn = ic.Connectivity(input_model=model, **conn_kw)
+        formatter = get_formatter(conn, args.to, options)
+        formatter.write(args.ofile)
+    except (RuntimeError, ic.ModelLoadError) as err:
+        _log.info("_end_ create from Python model (1)")
+        _log.error(f"{err}")
+        return 1
+    _log.info("_end_ create from Python script")
+
+    return 0
+
+
+def _code_main(args):
     if args.ofile is None or args.ofile == CONSOLE:
         args.ofile = sys.stdout
 
@@ -135,17 +186,7 @@ def module_main(args) -> int:
         conn_kw["model_flowsheet_attr"] = args.fs
     if args.build:
         conn_kw["model_build_func"] = args.build
-    try:
-        conn = ic.Connectivity(input_module=args.source, **conn_kw)
-        formatter = get_formatter(conn, args.to, options)
-        formatter.write(args.ofile)
-    except (RuntimeError, ic.ModelLoadError) as err:
-        _log.info("[ end ] create from Python model (1)")
-        _log.error(f"{err}")
-        return 1
-    _log.info("[ end ] create from Python model")
-
-    return 0
+    return options, conn_kw
 
 
 def get_formatter(conn: object, fmt: str, options=None) -> ic.Formatter:
@@ -253,6 +294,8 @@ def _process_log_options(module_name: str, args: argparse.Namespace) -> logging.
 
 
 def main(command_line=None):
+    global _log
+
     p = argparse.ArgumentParser(
         description="Process and/or generate model connectivity information"
     )
@@ -260,13 +303,16 @@ def main(command_line=None):
     # set nargs=? so --usage works without any other argument; though
     # this will require more checks later
     p.add_argument(
-        "source", help="Source file or module", metavar="FILE or MODULE", nargs="?"
+        "source",
+        help="Source file or module",
+        metavar="FILE.csv or SCRIPT.py or MODULE",
+        nargs="?",
     )
     p.add_argument(
         "--type",
         "-t",
-        choices=("csv", "module"),
-        help="Build source type: csv=CSV file, module=Python module",
+        choices=("csv", "module", "py"),
+        help="Build source type: csv=CSV file, module=Python module, py=Python script",
         default=None,
     )
     p.add_argument(
@@ -328,10 +374,20 @@ def main(command_line=None):
             path = Path(args.source)
             if not path.exists():
                 print(
-                    f"Source looks like a CSV file, but does not exist: {args.source}"
+                    f"Source looks like a CSV file, but does not exist: "
+                    f"{args.source}"
                 )
                 return 2
             main_method = csv_main
+        elif args.source.lower().endswith(".py"):
+            path = Path(args.source)
+            if not path.exists():
+                print(
+                    f"Source looks like a Python file, but does not exist: "
+                    f"{args.source}"
+                )
+                return 2
+            main_method = py_main
         elif "/" in args.source:
             path = Path(args.source)
             if path.exists():
@@ -358,6 +414,8 @@ def main(command_line=None):
                 print(f"Source file path does not exist: {args.source}")
                 return 2
             main_method = csv_main
+        elif args.type == "py":
+            main_method = py_main
         elif args.type == "module":
             main_method = module_main
 

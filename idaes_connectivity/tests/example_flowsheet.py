@@ -10,7 +10,6 @@ import argparse
 import logging
 from pathlib import Path
 import sys
-from typing import Dict
 
 # third-party
 from idaes.models.unit_models import Heater
@@ -25,7 +24,7 @@ from idaes.models.unit_models import Flash, Mixer
 # package
 from idaes_connectivity.tests import example_flowsheet
 from idaes_connectivity.tests.util import generate, init_logger
-from idaes_connectivity.base import Connectivity
+from idaes_connectivity.base import Connectivity, CSV
 
 
 def build():
@@ -51,10 +50,22 @@ def main() -> int:
     if args.verbose:
         log.setLevel(logging.DEBUG)
     else:
-        log.setLevel(logging.INFO)
+        log.setLevel(logging.WARNING)
     model = example_flowsheet.build()
-    conn = Connectivity(input_model=model)
-    generate(conn=conn, filename="example_flowsheet_data.py", log=log)
+    conn = Connectivity(input_model=model.fs)
+    try:
+        csv_file = "example_flowsheet.csv"
+        log.info("Writing connectivity data to CSV: %s", csv_file)
+        CSV(conn).write(csv_file)
+        print(f"Connectivity data written to: {csv_file}")
+    except Exception as e:
+        log.warning("Failed to write connectivity data to CSV: %s", e)
+    try:
+        data_script = Path(__file__).parent / "example_flowsheet_data.py"
+        log.info("Generating example flowsheet data: %s", data_script)
+        generate(conn=conn, filename=str(data_script), log=log)
+    except Exception as e:
+        log.warning("Failed to generate example flowsheet data: %s", e)
 
 
 if __name__ == "__main__":
