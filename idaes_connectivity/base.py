@@ -363,13 +363,14 @@ class Connectivity:
         rows, empty = [], True
         arcs = fs.component_objects(Arc, descend_into=False)
         sorted_arcs = sorted(arcs, key=lambda arc: arc.getname())
+        self._build_name_map(sorted_arcs)
+
         for comp in sorted_arcs:
             stream_name = comp.getname()
             src, dst = comp.source.parent_block(), comp.dest.parent_block()
             src_name, dst_name = self._model_unit_name(src), self._model_unit_name(dst)
             self._unit_classes[src_name] = self._model_unit_class(src)
             self._unit_classes[dst_name] = self._model_unit_class(dst)
-            # print(f"{src_name} , {dst_name}")
             src_i, dst_i, stream_i = -1, -1, -1
             try:
                 idx = streams_ord[stream_name]
@@ -407,9 +408,33 @@ class Connectivity:
         self._header = ["Arcs"] + units
         self._rows = [[streams[i]] + r for i, r in enumerate(rows)]
 
+    def _build_name_map(self, arcs):
+        """Mapping to strip off any prefixes common to all unit names.
+        This mapping is used by :func:`_model_unit_name`.
+        """
+        self._name_map = None
+        if len(arcs) < 2:
+            return
+        # split names by "." into tuples
+        name_tuples = []
+        for comp in arcs:
+            for p in comp.source, comp.dest:
+                nm = p.parent_block().name.split(".")
+                name_tuples.append(nm)
+        # iteratively look if all prefixes of length n are the same
+        n = 1
+        while True:
+            prefixes = {tuple(nm[:n]) for nm in name_tuples}
+            if len(prefixes) > 1:  # not common to all = stop
+                n -= 1
+                break
+            n += 1
+        if n > 0:
+            self._name_map = {".".join(k): ".".join(k[n:]) for k in name_tuples}
+
     def _model_unit_name(self, block):
         """Get the unit name for a Pyomo/IDAES block."""
-        return block.getname()
+        return block.name if self._name_map is None else self._name_map[block.name]
 
     def _model_unit_class(self, block):
         class_name = block.__class__.__name__
