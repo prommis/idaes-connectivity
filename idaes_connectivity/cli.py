@@ -282,6 +282,7 @@ def _process_log_options(module_name: str, args: argparse.Namespace) -> logging.
         fmt = "[{levelname}] {asctime} ({name}) {message}"
         h.setFormatter(logging.Formatter(fmt, style="{"))
         log.addHandler(h)
+        log.propagate = False  # otherwise we get 2 copies
     if args.quiet:
         log.setLevel(logging.CRITICAL)
     else:
@@ -367,7 +368,7 @@ def main(command_line=None):
         print("File or module source is required. Try --usage for details.\n")
         p.print_help()
         return 2
-    _log = _process_log_options("idaes_ui.conn.connectivity", args)
+    _log = _process_log_options("idaes_connectivity", args)
     if args.type is None:
         main_method = None
         if args.source.lower().endswith(".csv"):

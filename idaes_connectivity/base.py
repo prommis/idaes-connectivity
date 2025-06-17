@@ -125,6 +125,7 @@ class Connectivity:
             ValueError: Invalid inputs
         """
         self._unit_classes = {}
+        self._arc_descend = True  # XXX: Maybe make this an option later?
         if units is not None and streams is not None and connections is not None:
             self.units = units
             self._unit_classes = {k: self.DEFAULT_UNIT_CLASS for k in self.units}
@@ -357,12 +358,16 @@ class Connectivity:
         return connections
 
     def _load_model(self, fs):
+        _log.info("_begin_ load model")
         units_ord, units_idx = {}, 0
         units, streams = [], []
         streams_ord, streams_idx = {}, 0
         rows, empty = [], True
-        arcs = fs.component_objects(Arc, descend_into=False)
+        arcs = fs.component_objects(Arc, descend_into=self._arc_descend)
         sorted_arcs = sorted(arcs, key=lambda arc: arc.getname())
+        if _log.isEnabledFor(logging.DEBUG):
+            _log.debug(f"Arc short names: {[a.getname() for a in sorted_arcs]}")
+            _log.debug(f"Arc full names : {[a.name for a in sorted_arcs]}")
         self._build_name_map(sorted_arcs)
 
         for comp in sorted_arcs:
@@ -407,6 +412,31 @@ class Connectivity:
 
         self._header = ["Arcs"] + units
         self._rows = [[streams[i]] + r for i, r in enumerate(rows)]
+        _log.info("_end_ load model")
+
+    def _build_name_map(self, arcs):
+        """Mapping to strip off any prefixes common to all unit names.
+        This mapping is used by :func:`_model_unit_name`.
+        """
+        self._name_map = None
+        if len(arcs) < 2:
+            return
+        # split names by "." into tuples
+        name_tuples = []
+        for comp in arcs:
+            for p in comp.source, comp.dest:
+                nm = p.parent_block().name.split(".")
+                name_tuples.append(nm)
+        # iteratively look if all prefixes of length n are the same
+        n = 1
+        while True:
+            prefixes = {tuple(nm[:n]) for nm in name_tuples}
+            if len(prefixes) > 1:  # not common to all = stop
+                n -= 1
+                break
+            n += 1
+        if n > 0:
+            self._name_map = {".".join(k): ".".join(k[n:]) for k in name_tuples}
 
     def _build_name_map(self, arcs):
         """Mapping to strip off any prefixes common to all unit names.
