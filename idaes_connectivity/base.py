@@ -47,7 +47,7 @@ from idaes_connectivity.const import Direction
 __author__ = "Dan Gunter (LBNL)"
 
 # Logging
-_log = logging.getLogger("idaes_ui.conn.connectivity.base")
+_log = logging.getLogger(__name__)
 
 
 class ModelLoadError(Exception):
@@ -413,6 +413,30 @@ class Connectivity:
         self._header = ["Arcs"] + units
         self._rows = [[streams[i]] + r for i, r in enumerate(rows)]
         _log.info("_end_ load model")
+
+    def _build_name_map(self, arcs):
+        """Mapping to strip off any prefixes common to all unit names.
+        This mapping is used by :func:`_model_unit_name`.
+        """
+        self._name_map = None
+        if len(arcs) < 2:
+            return
+        # split names by "." into tuples
+        name_tuples = []
+        for comp in arcs:
+            for p in comp.source, comp.dest:
+                nm = p.parent_block().name.split(".")
+                name_tuples.append(nm)
+        # iteratively look if all prefixes of length n are the same
+        n = 1
+        while True:
+            prefixes = {tuple(nm[:n]) for nm in name_tuples}
+            if len(prefixes) > 1:  # not common to all = stop
+                n -= 1
+                break
+            n += 1
+        if n > 0:
+            self._name_map = {".".join(k): ".".join(k[n:]) for k in name_tuples}
 
     def _build_name_map(self, arcs):
         """Mapping to strip off any prefixes common to all unit names.
