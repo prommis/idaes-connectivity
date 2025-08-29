@@ -34,7 +34,8 @@ dependencies = [
     "pydantic >= 2",
     "ipython >= 8.3.0",
     "idaes-pse >= 2.7.0",
-    "pandas >= 2.2.3"
+    "pandas >= 2.2.3",
+    "requests"
 ]
 [project.scripts]
 idaes-conn = "idaes_connectivity.cli:main"
