@@ -296,12 +296,11 @@ class Connectivity:
         return rows
 
     # TODO: Add support for D2 display as well and maker it an option
-    def show(self, save_file=None, mermaid_server_url="https://mermaid.ink/img/"):
-        """Display the Mermaid diagram
-        Args:
-            save_file: Optional path to save the diagram as an image file
-            mermaid_server_url: URL of the Mermaid server to use for rendering
 
+    def _get_mermaid_image(self, mermaid_server_url):
+        """Get image for Mermaid diagram.
+        Args:
+            mermaid_server_url: URL of the Mermaid server to use for rendering
         """
         str_mm = Mermaid(self).write(None)
         graphbytes = str_mm.encode("utf8")
@@ -311,11 +310,38 @@ class Connectivity:
             img = im.open(
                 io.BytesIO(requests.get(mermaid_server_url + base64_string).content)
             )
-            img.show()
-            if save_file is not None:
-                img.save(save_file)
         except Exception as e:
             _log.error(f"Error displaying Mermaid diagram: {e}")
+            return None
+        return img
+
+    def save(
+        self,
+        save_file=None,
+        mermaid_server_url="https://mermaid.ink/img/",
+    ):
+        """Save the Mermaid diagram
+
+        Args:
+            save_name: Optional path to save the diagram as a text file
+            mermaid_server_url: URL of the Mermaid server to use for rendering
+
+        """
+        img = self._get_mermaid_image(mermaid_server_url)
+        if img is not None:
+            img.save(save_file)
+
+    def show(
+        self,
+        mermaid_server_url="https://mermaid.ink/img/",
+    ):
+        """Display the Mermaid diagram
+        Args:
+            mermaid_server_url: URL of the Mermaid server to use for rendering
+        """
+        img = self._get_mermaid_image(mermaid_server_url)
+        if img is not None:
+            img.show()
 
     def _build_units(self):
         units = {}

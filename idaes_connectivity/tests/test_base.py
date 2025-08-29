@@ -100,7 +100,8 @@ def test_show(tmpdir_factory):
     _, conn = setup()
     fn = tmpdir_factory.mktemp("data").join("img.png")
 
-    conn.show(save_file=fn)
+    conn.show()
+    conn.save(save_file=fn)
     test_data_dir = Path(__file__).parent.absolute() / "test_image.png"
 
     img = Image.open(test_data_dir).convert("RGB")
