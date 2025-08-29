@@ -296,11 +296,11 @@ class Connectivity:
         return rows
 
     # TODO: Add support for D2 display as well and maker it an option
-    def show(self, save_file=None, mermaid_server="https://mermaid.ink/img/"):
+    def show(self, save_file=None, mermaid_server_url="https://mermaid.ink/img/"):
         """Display the Mermaid diagram
         Args:
             save_file: Optional path to save the diagram as an image file
-            mermaid_server: URL of the Mermaid server to use for rendering
+            mermaid_server_url: URL of the Mermaid server to use for rendering
 
         """
         str_mm = Mermaid(self).write(None)
@@ -309,7 +309,7 @@ class Connectivity:
         base64_string = base64_bytes.decode("ascii")
         try:
             img = im.open(
-                io.BytesIO(requests.get(mermaid_server + base64_string).content)
+                io.BytesIO(requests.get(mermaid_server_url + base64_string).content)
             )
             img.show()
             if save_file is not None:
