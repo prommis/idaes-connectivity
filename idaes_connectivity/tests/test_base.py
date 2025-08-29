@@ -16,6 +16,9 @@ from typing import List
 
 # third-party
 import pytest
+from PIL import Image, ImageChops
+import numpy as np
+from pathlib import Path
 
 # package
 from idaes_connectivity.base import Connectivity, CSV, Mermaid, D2
@@ -25,9 +28,6 @@ from idaes_connectivity.tests.example_flowsheet_data import (
     example_mermaid,
     example_d2,
 )
-from PIL import Image, ImageChops
-import numpy as np
-import copy
 
 # avoid warnings about unused imports
 _1, _2, _3 = example_csv, example_d2, example_mermaid
@@ -63,7 +63,7 @@ def test_example_data(example_csv, example_mermaid, example_d2):
         print(f"@ Start {name} {text},{ref}")
         # normalize ws and remove blank lines at end (if any)
 
-        items = list_rstrip([t.rstrip() for t in copy.deepcopy(text).split("\n")])
+        items = list_rstrip([t.rstrip() for t in text.split("\n")])
         assert len(items) == len(ref)
         # compare line by line
         for i, item in enumerate(items):
@@ -101,7 +101,9 @@ def test_show(tmpdir_factory):
     fn = tmpdir_factory.mktemp("data").join("img.png")
 
     conn.show(save_file=fn)
-    img = Image.open("test_image.png").convert("RGB")
+    test_data_dir = Path(__file__).parent.absolute() / "test_image.png"
+
+    img = Image.open(test_data_dir).convert("RGB")
     saved_img = Image.open(fn).convert("RGB")
 
     assert np.sum(np.array(ImageChops.difference(img, saved_img).getdata())) == 0
