@@ -854,7 +854,7 @@ class D2(Formatter):
         for unit_name, unit_abbr in self._conn.units.items():
             unit_type = self._conn.get_unit_class(unit_name)
             if self._unit_class:
-                unit_str = f"{unit_name}::{unit_type}"
+                unit_str = f"'{unit_name}'::{unit_type}"
             else:
                 unit_str = unit_name
             if self._unit_values:
@@ -862,15 +862,15 @@ class D2(Formatter):
                 if values_to_show is None:
                     unit_display_str = unit_str
                 else:
-                    unit_display_str = '"' + unit_str + "\\n" + values_to_show + '"'
+                    unit_display_str = unit_str + "\\n" + values_to_show
             else:
                 unit_display_str = unit_str
             image_file = None if unit_type is None else unit_icon.get_icon(unit_type)
             if image_file is None:
-                f.write(f"{unit_abbr}: {unit_display_str}\n")
+                f.write(f"{unit_abbr}: '{unit_display_str}'\n")
             else:
                 f.write(
-                    f"{unit_abbr}: {unit_display_str} {{\n"
+                    f"{unit_abbr}: '{unit_display_str}' {{\n"
                     f"  shape: image\n"
                     f"  icon: {image_file}\n"
                     f"}}\n"
@@ -878,35 +878,37 @@ class D2(Formatter):
         stream_rmap = {v: k for k, v in self._conn.streams.items()}
         for stream_abbr, conns in self._conn.connections.items():
             stream_name = stream_rmap[stream_abbr]
+            stream_name_q = "'" + stream_name + "'"
             if conns[0] is None:
                 f.write(f"f{feed_num}: Feed {feed_num}\n")
                 f.write(f"f{feed_num} -> {conns[1]}")
                 if self._stream_labels:
-                    f.write(f": {stream_name}")
+                    f.write(f": {stream_name_q}")
                 f.write("\n")
                 feed_num += 1
             elif conns[1] is None:
                 f.write(f"s{sink_num}: Sink {sink_num}\n")
                 f.write(f"f{sink_num} -> {conns[1]}")
                 if self._stream_labels:
-                    f.write(f"{sink_num}: {stream_name}")
+                    f.write(f"{sink_num}: {stream_name_q}")
                 f.write("\n")
                 sink_num += 1
             else:
                 if self._stream_labels and not self._stream_values:
-                    f.write(f"{conns[0]} -> {conns[1]}: {stream_name}")
+                    f.write(f"{conns[0]} -> {conns[1]}: {stream_name_q}")
                 elif self._stream_values:
                     v = self._conn.stream_values[stream_name]
                     if v:
                         values_text = self._format_values(v)
                         if self._stream_labels:
-                            values_text = f"{stream_name}\\n" + values_text
+                            values_text = f"{stream_name_q}\\n" + values_text
                         stream_node = f"S_{stream_name}"
-                        f.write(f'{stream_node}: "{values_text}"\n')
-                        f.write(f"{stream_node}.class: stream_value\n")
-                        f.write(f"{conns[0]} -> {stream_node} -> {conns[1]}\n")
+                        stream_node_q = "'" + stream_node + "'"
+                        f.write(f'{stream_node_q}: "{values_text}"\n')
+                        f.write(f"{stream_node_q}.class: stream_value\n")
+                        f.write(f"{conns[0]} -> {stream_node_q} -> {conns[1]}\n")
                     elif self._stream_labels:
-                        f.write(f"{conns[0]} -> {conns[1]}: {stream_name}")
+                        f.write(f"{conns[0]} -> {conns[1]}: {stream_name_q}")
                     else:
                         f.write(f"{conns[0]} -> {conns[1]}")
                 else:
