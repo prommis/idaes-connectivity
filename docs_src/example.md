@@ -35,6 +35,12 @@ csv = CSV(conn)
 
 # Print out the connectivity CSV
 print(csv.write(None))
+
+# Display diagram as an image, this will load it using system image viewer
+conn.show()
+
+# Save diagram to disk
+conn.save(save_name='example.jpg')
 ```
 
 ## Command-line interface

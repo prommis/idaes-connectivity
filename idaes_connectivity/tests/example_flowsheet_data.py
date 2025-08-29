@@ -5,8 +5,8 @@ import pytest
 def example_csv():
     return [
         "Arcs,M01,H02,F03",
-        "s01,-1,1,0",
-        "s02,0,-1,1",
+        "fs.s01,-1,1,0",
+        "fs.s02,0,-1,1",
         #        "f01,1,0,0",
         #        "k01,0,0,-1",
     ]

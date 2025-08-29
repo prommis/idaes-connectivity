@@ -32,6 +32,10 @@ import sys
 from typing import TextIO, Union, Optional, List, Dict
 import warnings
 
+from PIL import Image as im
+import base64
+import io, requests
+
 # third-party
 try:
     import pyomo
@@ -58,6 +62,11 @@ class ModelLoadError(Exception):
 class DataLoadError(Exception):
     def __init__(self, path, err):
         super().__init__(f"Could not load from file '{path}': {err}")
+
+
+class MermaidServerError(Exception):
+    def __init__(self, err):
+        super().__init__(f"Error contacting Mermaid server to render diagram: {err}")
 
 
 class ValueContainer:
@@ -88,6 +97,9 @@ class Connectivity:
 
     #: Default class for a unit
     DEFAULT_UNIT_CLASS = "Component"
+
+    #: Mermaid server URL for rendering diagrams over HTTP
+    default_mermaid_server_url = "https://mermaid.ink/img/"
 
     def __init__(
         self,
@@ -291,6 +303,71 @@ class Connectivity:
             rows.append(r.copy())
         return rows
 
+    # TODO: Add support for D2 display as well and maker it an option
+
+    def _get_mermaid_image(self, mermaid_server_url: str, timeout: float = 10.0):
+        """Get image for Mermaid diagram.
+
+        Args:
+            mermaid_server_url: URL of the Mermaid server to use for rendering
+            timeout: Timeout in seconds for contacting the server
+
+        Raises:
+            MermaidServerError: if there is a problem contacting `mermaid_server_url` to render the image
+        """
+        str_mm = Mermaid(self).write(None)
+        graphbytes = str_mm.encode("utf8")
+        base64_bytes = base64.urlsafe_b64encode(graphbytes)
+        base64_string = base64_bytes.decode("ascii")
+        try:
+            img = im.open(
+                io.BytesIO(
+                    requests.get(
+                        mermaid_server_url + base64_string, timeout=timeout
+                    ).content
+                )
+            )
+        except Exception as e:
+            _log.error(f"Error displaying Mermaid diagram: {e}")
+            raise MermaidServerError(e)
+        return img
+
+    def save(
+        self,
+        save_file=None,
+        mermaid_server_url=default_mermaid_server_url,
+    ):
+        """Save the Mermaid diagram
+
+        Args:
+            save_name: Optional path to save the diagram as a text file
+            mermaid_server_url: URL of the Mermaid server to use for rendering
+
+        """
+        try:
+            img = self._get_mermaid_image(mermaid_server_url)
+        except MermaidServerError as err:
+            _log.error(f"save() failed because of a mermaid server error: {err}")
+            raise
+
+        img.save(save_file)
+
+    def show(
+        self,
+        mermaid_server_url=default_mermaid_server_url,
+    ):
+        """Display the Mermaid diagram
+        Args:
+            mermaid_server_url: URL of the Mermaid server to use for rendering
+        """
+        try:
+            img = self._get_mermaid_image(mermaid_server_url)
+        except MermaidServerError as err:
+            _log.error(f"show() failed because of a mermaid server error: {err}")
+            raise
+
+        img.show()
+
     def _build_units(self):
         units = {}
         c1, c2 = 1, -1
@@ -364,14 +441,15 @@ class Connectivity:
         streams_ord, streams_idx = {}, 0
         rows, empty = [], True
         arcs = fs.component_objects(Arc, descend_into=self._arc_descend)
-        sorted_arcs = sorted(arcs, key=lambda arc: arc.getname())
+
+        sorted_arcs = sorted(arcs, key=lambda arc: arc.name)
         if _log.isEnabledFor(logging.DEBUG):
             _log.debug(f"Arc short names: {[a.getname() for a in sorted_arcs]}")
             _log.debug(f"Arc full names : {[a.name for a in sorted_arcs]}")
         self._build_name_map(sorted_arcs)
 
         for comp in sorted_arcs:
-            stream_name = comp.getname()
+            stream_name = comp.name  # .getname()
             src, dst = comp.source.parent_block(), comp.dest.parent_block()
             src_name, dst_name = self._model_unit_name(src), self._model_unit_name(dst)
             self._unit_classes[src_name] = self._model_unit_class(src)

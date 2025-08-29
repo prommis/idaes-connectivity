@@ -9,5 +9,6 @@ jupyter-book
 # program
 pydantic>=2
 idaes-pse
+requests
 
 --editable .

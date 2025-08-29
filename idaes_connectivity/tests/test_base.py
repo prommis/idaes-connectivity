@@ -16,6 +16,9 @@ from typing import List
 
 # third-party
 import pytest
+from PIL import Image, ImageChops
+import numpy as np
+from pathlib import Path
 
 # package
 from idaes_connectivity.base import Connectivity, CSV, Mermaid, D2
@@ -30,14 +33,22 @@ from idaes_connectivity.tests.example_flowsheet_data import (
 _1, _2, _3 = example_csv, example_d2, example_mermaid
 
 # Constants
-STREAM_1 = "s01"
+STREAM_1 = "fs.s01"
 UNIT_1 = "M01"
 
 
 def setup():
     model = example_flowsheet.build()
-    conn = Connectivity(input_model=model.fs)
+    conn = Connectivity(input_model=model)
     return model, conn
+
+
+def list_rstrip(x: List) -> List:
+    """Return list (copy) with empty items at end removed"""
+    i = len(x) - 1
+    while i > -1 and len(x[i]) == 0:
+        i -= 1
+    return x[: i + 1]
 
 
 @pytest.mark.unit
@@ -49,8 +60,9 @@ def test_example_data(example_csv, example_mermaid, example_d2):
         ("Mermaid", Mermaid(conn).write(None), example_mermaid),
         ("D2", D2(conn).write(None), example_d2),
     ):
-        print(f"@ Start {name}")
+        print(f"@ Start {name} {text},{ref}")
         # normalize ws and remove blank lines at end (if any)
+
         items = list_rstrip([t.rstrip() for t in text.split("\n")])
         assert len(items) == len(ref)
         # compare line by line
@@ -61,14 +73,6 @@ def test_example_data(example_csv, example_mermaid, example_d2):
             else:
                 assert item == ref[i]
         print(f"@ End   {name}")
-
-
-def list_rstrip(x: List) -> List:
-    """Return list (copy) with empty items at end removed"""
-    i = len(x) - 1
-    while i > -1 and len(x[i]) == 0:
-        i -= 1
-    return x[: i + 1]
 
 
 @pytest.mark.unit
@@ -89,6 +93,21 @@ def test_defaults_formatters(klass):
     # different value (use value)
     fmt = klass(conn, stream_labels=False)
     assert fmt._stream_labels == False
+
+
+@pytest.mark.unit
+def test_show(tmpdir_factory):
+    _, conn = setup()
+    fn = tmpdir_factory.mktemp("data").join("img.png")
+
+    conn.show()
+    conn.save(save_file=fn)
+    test_data_dir = Path(__file__).parent.absolute() / "test_image.png"
+
+    img = Image.open(test_data_dir).convert("RGB")
+    saved_img = Image.open(fn).convert("RGB")
+
+    assert np.sum(np.array(ImageChops.difference(img, saved_img).getdata())) == 0
 
 
 @pytest.mark.unit
