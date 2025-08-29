@@ -32,6 +32,10 @@ import sys
 from typing import TextIO, Union, Optional, List, Dict
 import warnings
 
+from PIL import Image as im
+import base64
+import io, requests
+
 # third-party
 try:
     import pyomo
@@ -291,6 +295,28 @@ class Connectivity:
             rows.append(r.copy())
         return rows
 
+    # TODO: Add support for D2 display as well and maker it an option
+    def show(self, save_file=None, mermaid_server="https://mermaid.ink/img/"):
+        """Display the Mermaid diagram
+        Args:
+            save_file: Optional path to save the diagram as an image file
+            mermaid_server: URL of the Mermaid server to use for rendering
+
+        """
+        str_mm = Mermaid(self).write(None)
+        graphbytes = str_mm.encode("utf8")
+        base64_bytes = base64.urlsafe_b64encode(graphbytes)
+        base64_string = base64_bytes.decode("ascii")
+        try:
+            img = im.open(
+                io.BytesIO(requests.get(mermaid_server + base64_string).content)
+            )
+            img.show()
+            if save_file is not None:
+                img.save(save_file)
+        except Exception as e:
+            _log.error(f"Error displaying Mermaid diagram: {e}")
+
     def _build_units(self):
         units = {}
         c1, c2 = 1, -1
@@ -365,20 +391,14 @@ class Connectivity:
         rows, empty = [], True
         arcs = fs.component_objects(Arc, descend_into=self._arc_descend)
 
-        def _get_arc_name(arc):
-            arc_name = arc.getname()
-            parent_block = arc.source.parent_block().name
-            print(f"Arc name: {arc_name}, Parent block: {parent_block}")
-            return f"{parent_block}.{arc_name}"
-
-        sorted_arcs = sorted(arcs, key=lambda arc: _get_arc_name(arc))
+        sorted_arcs = sorted(arcs, key=lambda arc: arc.name)
         if _log.isEnabledFor(logging.DEBUG):
             _log.debug(f"Arc short names: {[a.getname() for a in sorted_arcs]}")
             _log.debug(f"Arc full names : {[a.name for a in sorted_arcs]}")
         self._build_name_map(sorted_arcs)
 
         for comp in sorted_arcs:
-            stream_name = _get_arc_name(comp)  # .getname()
+            stream_name = comp.name  # .getname()
             src, dst = comp.source.parent_block(), comp.dest.parent_block()
             src_name, dst_name = self._model_unit_name(src), self._model_unit_name(dst)
             self._unit_classes[src_name] = self._model_unit_class(src)
