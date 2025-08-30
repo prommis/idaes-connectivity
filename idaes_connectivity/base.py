@@ -523,7 +523,6 @@ class Connectivity:
                     name_tuples.append(nm)
         # iteratively look if all prefixes of length n are the same
         n = 1
-        print(name_tuples)
         while True and len(name_tuples) > 1:
             prefixes = {tuple(nm[:n]) for nm in name_tuples}
             if len(prefixes) > 1:  # not common to all = stop
