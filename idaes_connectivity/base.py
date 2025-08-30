@@ -64,6 +64,11 @@ class DataLoadError(Exception):
         super().__init__(f"Could not load from file '{path}': {err}")
 
 
+class MermaidServerError(Exception):
+    def __init__(self, err):
+        super().__init__(f"Error contacting Mermaid server to render diagram: {err}")
+
+
 class ValueContainer:
     def __init__(self, obj):
         self.value = obj
@@ -92,6 +97,9 @@ class Connectivity:
 
     #: Default class for a unit
     DEFAULT_UNIT_CLASS = "Component"
+
+    #: Mermaid server URL for rendering diagrams over HTTP
+    default_mermaid_server_url = "https://mermaid.ink/img/"
 
     def __init__(
         self,
@@ -300,10 +308,15 @@ class Connectivity:
 
     # TODO: Add support for D2 display as well and maker it an option
 
-    def _get_mermaid_image(self, mermaid_server_url):
+    def _get_mermaid_image(self, mermaid_server_url: str, timeout: float = 10.0):
         """Get image for Mermaid diagram.
+
         Args:
             mermaid_server_url: URL of the Mermaid server to use for rendering
+            timeout: Timeout in seconds for contacting the server
+
+        Raises:
+            MermaidServerError: if there is a problem contacting `mermaid_server_url` to render the image
         """
         str_mm = Mermaid(self).write(None)
         graphbytes = str_mm.encode("utf8")
@@ -311,17 +324,21 @@ class Connectivity:
         base64_string = base64_bytes.decode("ascii")
         try:
             img = im.open(
-                io.BytesIO(requests.get(mermaid_server_url + base64_string).content)
+                io.BytesIO(
+                    requests.get(
+                        mermaid_server_url + base64_string, timeout=timeout
+                    ).content
+                )
             )
         except Exception as e:
             _log.error(f"Error displaying Mermaid diagram: {e}")
-            return None
+            raise MermaidServerError(e)
         return img
 
     def save(
         self,
         save_file=None,
-        mermaid_server_url="https://mermaid.ink/img/",
+        mermaid_server_url=default_mermaid_server_url,
     ):
         """Save the Mermaid diagram
 
@@ -330,21 +347,29 @@ class Connectivity:
             mermaid_server_url: URL of the Mermaid server to use for rendering
 
         """
-        img = self._get_mermaid_image(mermaid_server_url)
-        if img is not None:
-            img.save(save_file)
+        try:
+            img = self._get_mermaid_image(mermaid_server_url)
+        except MermaidServerError as err:
+            _log.error(f"save() failed because of a mermaid server error: {err}")
+            raise
+
+        img.save(save_file)
 
     def show(
         self,
-        mermaid_server_url="https://mermaid.ink/img/",
+        mermaid_server_url=default_mermaid_server_url,
     ):
         """Display the Mermaid diagram
         Args:
             mermaid_server_url: URL of the Mermaid server to use for rendering
         """
-        img = self._get_mermaid_image(mermaid_server_url)
-        if img is not None:
-            img.show()
+        try:
+            img = self._get_mermaid_image(mermaid_server_url)
+        except MermaidServerError as err:
+            _log.error(f"show() failed because of a mermaid server error: {err}")
+            raise
+
+        img.show()
 
     def _build_units(self):
         units = {}
