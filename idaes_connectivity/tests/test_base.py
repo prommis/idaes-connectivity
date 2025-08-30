@@ -67,8 +67,8 @@ def setup_with_user_names():
         "fs.M01": "user_M01",
         "fs.H02": "user_H02",
         "fs.F03": "user_F03",
-        "fs.s01": "user_s01",
-        "fs.s02": "user_s02",
+        "fs.s01": "connector",
+        "fs.s02": "connector",
     }
     return _setup(test_dict)
 
@@ -112,7 +112,6 @@ def test_example_with_user_data(
     example_mermaid_user_names,
     example_d2_user_names,
 ):
-    test_dict = {"M01": "user_M01", "H02": "user_H02", "F03": "user_F03"}
     model, conn = setup_with_user_names
     # loop over each output format
     print(conn)
