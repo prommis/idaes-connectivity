@@ -112,6 +112,7 @@ class Connectivity:
         input_model=None,
         model_flowsheet_attr: str = "",
         model_build_func: str = "build",
+        unit_model_display_names=None,
     ):
         """Create from existing data or one of the valid input types.
 
@@ -131,12 +132,14 @@ class Connectivity:
                                   use the model object as the flowsheet.
             model_build_func: Name of function in `input_module` to invoke to build
                               and return the model object.
+            unit_model_display_names: Dict of user specified names for unit blocks, specify a dict {'unit_name': 'display_name'}
 
         Raises:
             ModelLoadError: Couldn't load the model/module
             ValueError: Invalid inputs
         """
         self._unit_classes = {}
+        self._user_name_map = unit_model_display_names
         self._arc_descend = True  # XXX: Maybe make this an option later?
         if units is not None and streams is not None and connections is not None:
             self.units = units
@@ -447,7 +450,6 @@ class Connectivity:
             _log.debug(f"Arc short names: {[a.getname() for a in sorted_arcs]}")
             _log.debug(f"Arc full names : {[a.name for a in sorted_arcs]}")
         self._build_name_map(sorted_arcs)
-
         for comp in sorted_arcs:
             stream_name = comp.name  # .getname()
             src, dst = comp.source.parent_block(), comp.dest.parent_block()
@@ -492,53 +494,50 @@ class Connectivity:
         self._rows = [[streams[i]] + r for i, r in enumerate(rows)]
         _log.info("_end_ load model")
 
-    def _build_name_map(self, arcs):
-        """Mapping to strip off any prefixes common to all unit names.
-        This mapping is used by :func:`_model_unit_name`.
+    def set_display_names(self, name_map):
+        """Set the user-defined name map.
+        Args:
+            name_map: Dictionary mapping original names to new names
         """
-        self._name_map = None
-        if len(arcs) < 2:
-            return
-        # split names by "." into tuples
-        name_tuples = []
-        for comp in arcs:
-            for p in comp.source, comp.dest:
-                nm = p.parent_block().name.split(".")
-                name_tuples.append(nm)
-        # iteratively look if all prefixes of length n are the same
-        n = 1
-        while True:
-            prefixes = {tuple(nm[:n]) for nm in name_tuples}
-            if len(prefixes) > 1:  # not common to all = stop
-                n -= 1
-                break
-            n += 1
-        if n > 0:
-            self._name_map = {".".join(k): ".".join(k[n:]) for k in name_tuples}
+        assert isinstance(name_map, dict), "Name map must be a dictionary"
+        self._user_name_map = name_map
 
     def _build_name_map(self, arcs):
         """Mapping to strip off any prefixes common to all unit names.
         This mapping is used by :func:`_model_unit_name`.
         """
+        _auto_name_map = None
         self._name_map = None
         if len(arcs) < 2:
             return
         # split names by "." into tuples
         name_tuples = []
+        user_tuples = []
         for comp in arcs:
             for p in comp.source, comp.dest:
-                nm = p.parent_block().name.split(".")
-                name_tuples.append(nm)
+                pm = p.parent_block().name
+                if self._user_name_map is not None and pm in self._user_name_map:
+                    user_tuples.append((pm, self._user_name_map[pm]))
+                else:
+                    nm = pm.split(".")
+                    name_tuples.append(nm)
         # iteratively look if all prefixes of length n are the same
         n = 1
-        while True:
+        while True and len(name_tuples) > 1:
             prefixes = {tuple(nm[:n]) for nm in name_tuples}
             if len(prefixes) > 1:  # not common to all = stop
                 n -= 1
                 break
             n += 1
         if n > 0:
-            self._name_map = {".".join(k): ".".join(k[n:]) for k in name_tuples}
+            self._name_map = {}
+            _auto_name_map = {".".join(k): ".".join(k[n:]) for k in name_tuples}
+            self._name_map.update(_auto_name_map)
+        if len(user_tuples) > 0:
+            if self._name_map is None:
+                self._name_map = {}
+            _user_name_map = {k[0]: k[1] for k in user_tuples}
+            self._name_map.update(_user_name_map)
 
     def _model_unit_name(self, block):
         """Get the unit name for a Pyomo/IDAES block."""
@@ -763,7 +762,9 @@ class Mermaid(Formatter):
                     else:
                         connections.append(f"{src} --> {tgt}")
                 elif self._stream_labels:
-                    label = self._clean_stream_label(stream_name)
+                    label = self._clean_stream_label(
+                        stream_name, self._conn._user_name_map
+                    )
                     connections.append(f"{src} -- {label} -->{tgt}")
                 else:
                     connections.append(f"{src} --> {tgt}")
@@ -776,11 +777,14 @@ class Mermaid(Formatter):
         return connections, show_streams
 
     @staticmethod
-    def _clean_stream_label(label):
+    def _clean_stream_label(label, user_label_names):
+        if user_label_names is not None and label in user_label_names:
+            return user_label_names[label]
         if label.endswith("_outlet"):
             label = label[:-7]
         elif label.endswith("_feed"):
             label = label[:-5]
+
         label = label.replace("_", " ")
         return label
 

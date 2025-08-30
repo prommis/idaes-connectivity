@@ -41,6 +41,19 @@ conn.show()
 
 # Save diagram to disk
 conn.save(save_name='example.jpg')
+
+# To provide custom names for units on the block create a dictionary that maps your block name to desired display name
+# for example of a model has a block on m.fs.test_block and you want it to be shown as Test Block, and an arc that connects m.fs.test_block to some outlet via m.fs.arc_test_to_outlet and you want to be displayed "Outlet arc" do the following:
+
+block_to_display_name_map={m.fs.test_block.name:"Test Block", m.fs.arc_test_to_outlet:'Outlet Arc'} 
+
+# Note: The dictionary can contain reference to blocks that don't even exist in the model.
+
+# pass it into connectivity module
+conn = Connectivity(input_model=model, unit_model_display_names=block_to_display_name_map)
+
+
+
 ```
 
 ## Command-line interface
