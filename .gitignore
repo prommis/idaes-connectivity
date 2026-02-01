@@ -1,0 +1,6 @@
+_build
+__pycache__
+.ipynb_checkpoints
+.spyproject
+*.egg-info
+.coverage
