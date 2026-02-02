@@ -46,7 +46,7 @@ except ImportError as err:
 
 # package
 from idaes_connectivity.util import IdaesPaths, UnitIcon
-from idaes_connectivity.const import Direction
+from idaes_connectivity.const import Direction, ImageType, Images
 
 __author__ = "Dan Gunter (LBNL)"
 
@@ -707,6 +707,7 @@ class Mermaid(Formatter):
         connections, show_streams = self._get_connections()
         # Units
         for s in self._get_mermaid_units():
+            # TODO: if there is an image, use it
             outfile.write(f"{i}{s}\n")
         # Streams
         for abbr, s in self._get_mermaid_streams():
@@ -927,3 +928,41 @@ class D2(Formatter):
         if not values:
             return None
         return "\\n".join((f"{k} = {v}" for k, v in values.items()))
+
+
+try:
+    _images = Images()
+except FileNotFoundError:
+    _images = None
+
+
+def get_component_image(component: object, as_url: bool = True) -> str | None:
+    """Get image filename for a component (based on class).
+
+    Returns:
+        `file://` URL or file name; None if no match
+    """
+    if _images is None:
+        return None
+
+    try:
+        name = component.local_name
+    except AttributeError:
+        _log.error("Cannot get image for object without `.local_name` attribute")
+        return None
+
+    img, std_name = None, None
+    if name.endswith("Flash"):
+        std_name = "flash"
+    elif name.endswith("Mixer"):
+        std_name = "mixer"
+    elif name.endswith("Heater"):
+        std_name = "heater"
+
+    if std_name:
+        try:
+            img = _images.get_file(std_name, as_url=as_url)
+        except KeyError:
+            _log.info(f"Image not found for '{std_name}'")
+
+    return img

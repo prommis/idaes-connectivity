@@ -36,12 +36,19 @@ class Direction(Enum):
 CONSOLE = "-"
 
 
+class ImageType(Enum):
+    SVG = "svg"
+    PNG = "png"
+    ALL = "all"
+
+
 class Images:
-    """Provide access to image files by a canonical name."""
+    """Provide access to image files by a standard name."""
 
     DIRNAME = "images"  # relative to location of this file
 
     def __init__(self, root: str | Path = None):
+        """Get list of images and associate with standard names."""
         # construct path to image directory
         if root is None:
             root = Path(__file__).parent
@@ -58,24 +65,20 @@ class Images:
         self._names = {}
         self._set_names()
 
-    def list_names(self, img_type=None) -> list[str]:
+    def list_names(self, img_type: ImageType = ImageType.ALL) -> list[str]:
         """List all of the names for which we have an image."""
-        if img_type is None:
-            img_type = "all"
-        elif img_type not in self._names:
-            raise KeyError("Bad image type")
         return list(self._names[img_type].keys())
 
-    def get_file(self, name, as_url=True, img_type=None):
-        """Get file (or file:// URL) corresponding to given
+    def get_file(self, name, as_url: bool = True, img_type: ImageType = None) -> str:
+        """Get image file (by default, as `file://` URL) corresponding to given
         image name and, optionally, type.
         """
         # choose mapping to search
-        if img_type:
+        if img_type is not None:
             if img_type in self._names:
                 data = self._names[img_type]
         else:
-            data = self._names["all"]
+            data = self._names[ImageType.ALL]
         # look for name in mapping
         if name not in data:
             raise KeyError(f"Unknown image name '{name}'")
@@ -91,19 +94,21 @@ class Images:
         return result
 
     def _set_names(self):
-        self._names = {"svg": {}, "png": {}, "all": {}}
+        self._names = {ImageType.SVG: {}, ImageType.PNG: {}, ImageType.ALL: {}}
         for filepath in self._image_dir.glob("*"):
             sfx = filepath.suffix
-            img_type = sfx[1:] if sfx in (".svg", ".png") else None
+            img_type = ImageType(sfx[1:]) if sfx in (".svg", ".png") else None
             if img_type:
                 name = self._name(filepath.stem)
                 if name:
                     filename = str(filepath)
                     self._names[img_type][name] = filename
-                    self._names["all"][name] = filename
+                    self._names[ImageType.ALL][name] = filename
 
     def _name(self, s: str) -> str:
+        result = ""
         s = s.lower()
+
         if s in (
             "compressor",
             "cooler",
@@ -116,8 +121,10 @@ class Images:
             "pump",
             "splitter",
         ):
-            return s
-        if s == "heat_exchanger_1.svg":
-            return "heat_exchanger"
-        if s == "heater_1.svg":
-            return "heater"
+            result = s
+        elif s == "heat_exchanger_1":
+            result = "heat_exchanger"
+        elif s == "heater_1":
+            result = "heater"
+
+        return result
