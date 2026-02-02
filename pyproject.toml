@@ -43,6 +43,9 @@ idaes-conn = "idaes_connectivity.cli:main"
 [tool.setuptools]
 packages = ["idaes_connectivity"]
 
+[tool.setuptools.package-data]
+idaes_connectivity = ["images/*.png", "images/*.svg"]
+ 
 [tool.setuptools_scm]
 
 [tool.pylint.main]
