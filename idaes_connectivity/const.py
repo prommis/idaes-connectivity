@@ -13,6 +13,7 @@ Shared constants for idaes_connectivity
 """
 # stdlib
 from enum import Enum
+from importlib.resources import files
 from pathlib import Path
 
 # third-party
@@ -49,18 +50,8 @@ class Images:
 
     def __init__(self, root: str | Path = None):
         """Get list of images and associate with standard names."""
-        # construct path to image directory
-        if root is None:
-            root = Path(__file__).parent
-        elif not isinstance(Path, root):
-            root = Path(root)
-        image_dir = root / self.DIRNAME
-        # check image directory
-        if not image_dir.exists():
-            raise FileNotFoundError(f"Directory {image_dir} does not exist")
-        elif not image_dir.is_dir():
-            raise FileNotFoundError(f"Path {image_dir} must be a directory")
-        self._image_dir = image_dir
+        # use importlib so this works on installed wheels, too
+        self._image_path = files("idaes_connectivity.images")
         # give names to files
         self._names = {}
         self._set_names()
@@ -83,8 +74,7 @@ class Images:
         if name not in data:
             raise KeyError(f"Unknown image name '{name}'")
         # get associated filename
-        filename = data[name]
-        filepath = str((self._image_dir / filename).absolute())
+        filepath = data[name]
         # return filename as plain file or URL
         if as_url:
             result = f"file://{filepath}"
@@ -95,7 +85,7 @@ class Images:
 
     def _set_names(self):
         self._names = {ImageType.SVG: {}, ImageType.PNG: {}, ImageType.ALL: {}}
-        for filepath in self._image_dir.glob("*"):
+        for filepath in self._image_path.iterdir():
             sfx = filepath.suffix
             img_type = ImageType(sfx[1:]) if sfx in (".svg", ".png") else None
             if img_type:
