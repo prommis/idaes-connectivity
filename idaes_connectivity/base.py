@@ -654,6 +654,7 @@ class Mermaid(Formatter):
         "unit_values": False,
         "unit_class": False,
         "indent": "    ",
+        "images": True,
     }
 
     def __init__(self, connectivity: Connectivity, **kwargs):
@@ -673,6 +674,7 @@ class Mermaid(Formatter):
         self._stream_values = kwargs["stream_values"]
         self._unit_values = kwargs["unit_values"]
         self._unit_class = kwargs["unit_class"]
+        self._images = kwargs["images"]
         self._direction = self._parse_direction(kwargs["direction"])
         if self._stream_values:
             self._streams_with_values = set()
@@ -706,9 +708,20 @@ class Mermaid(Formatter):
         # Get connections and which streams to show
         connections, show_streams = self._get_connections()
         # Units
-        for s in self._get_mermaid_units():
-            # TODO: if there is an image, use it
-            outfile.write(f"{i}{s}\n")
+        for name, abbr in self._conn.units.items():
+            node_name, node_class = self._get_node_info(name)
+            if self._images:
+                img_url = get_component_image(node_class)
+                print(f"@@ image for class {node_class} = {img_url}")
+                if img_url:
+                    node_str = f'{abbr}@{{ img: "{img_url}", label: {node_name}, h: 50, constraint: "on"}}'
+            elif self._unit_values:
+                if values := self._conn.unit_values[name]:
+                    values_str = "\n".join((f"{k}={v}" for k, v in values.items()))
+                    node_str = f"{abbr}[{node_name}\n{values_str}]"
+            else:
+                node_str = f"{abbr}[{node_name}]"
+            outfile.write(f"{i}{node_str}\n")
         # Streams
         for abbr, s in self._get_mermaid_streams():
             if abbr in show_streams:
@@ -724,20 +737,16 @@ class Mermaid(Formatter):
             text_list.append(f"{k} = {v}")
         return "\n".join(text_list)
 
-    def _get_mermaid_units(self):
-        for name, abbr in self._conn.units.items():
-            qname = self._quote_name(name)
-            if self._unit_class:
-                klass = self._conn.get_unit_class(name)
-                display_name = f"{qname}::{klass}"
-            else:
-                display_name = qname
-            if self._unit_values:
-                values = self._conn.unit_values[name]
-                if values:
-                    values_str = "\n".join((f"{k}={v}" for k, v in values.items()))
-                    display_name = f"{display_name}\n{values_str}"
-            yield f"{abbr}[{display_name}]"
+    def _get_node_info(self, name):
+        return self._quote_name(name), self._conn.get_unit_class(name)
+
+    def _get_node_values(self):
+        if self._unit_values:
+            values = self._conn.unit_values[name]
+            if values:
+                values_str = "\n".join((f"{k}={v}" for k, v in values.items()))
+                display_name = f"{display_name}\n{values_str}"
+        return f"{abbr}[{display_name}]"
 
     def _get_mermaid_streams(self):
         """Get (possibly cleaned up) stream abbr. and names"""
@@ -936,20 +945,23 @@ except FileNotFoundError:
     _images = None
 
 
-def get_component_image(component: object, as_url: bool = True) -> str | None:
+def get_component_image(component: object) -> str | None:
     """Get image filename for a component (based on class).
 
     Returns:
-        `file://` URL or file name; None if no match
+        Local URL; None if no match
     """
     if _images is None:
         return None
 
-    try:
-        name = component.local_name
-    except AttributeError:
-        _log.error("Cannot get image for object without `.local_name` attribute")
-        return None
+    if isinstance(component, str):
+        name = component
+    else:
+        try:
+            name = component.local_name
+        except AttributeError:
+            _log.error("Cannot get image for object without `.local_name` attribute")
+            return None
 
     img, std_name = None, None
     if name.endswith("Flash"):
@@ -958,10 +970,11 @@ def get_component_image(component: object, as_url: bool = True) -> str | None:
         std_name = "mixer"
     elif name.endswith("Heater"):
         std_name = "heater"
+    # todo: add more classes
 
     if std_name:
         try:
-            img = _images.get_file(std_name, as_url=as_url)
+            img = _images.get_url(std_name)
         except KeyError:
             _log.info(f"Image not found for '{std_name}'")
 
