@@ -45,8 +45,8 @@ except ImportError as err:
     warnings.warn(f"Could not import pyomo: {err}")
 
 # package
-from idaes_connectivity.util import IdaesPaths, UnitIcon
-from idaes_connectivity.const import Direction, ImageType, Images
+from idaes_connectivity.util import IdaesPaths, UnitIcon, FileServer
+from idaes_connectivity.const import Direction, ImageNames, DEFAULT_IMAGE_DIR
 
 __author__ = "Dan Gunter (LBNL)"
 
@@ -654,10 +654,15 @@ class Mermaid(Formatter):
         "unit_values": False,
         "unit_class": False,
         "indent": "    ",
-        "images": True,
     }
 
-    def __init__(self, connectivity: Connectivity, **kwargs):
+    def __init__(
+        self,
+        connectivity: Connectivity,
+        component_images=False,
+        component_image_dir=None,
+        **kwargs,
+    ):
         """Constructor. See class `defaults` for default values.
 
         Args:
@@ -674,10 +679,26 @@ class Mermaid(Formatter):
         self._stream_values = kwargs["stream_values"]
         self._unit_values = kwargs["unit_values"]
         self._unit_class = kwargs["unit_class"]
-        self._images = kwargs["images"]
         self._direction = self._parse_direction(kwargs["direction"])
         if self._stream_values:
             self._streams_with_values = set()
+
+        # If component images are desired, start image server, etc.
+        self._images = False
+        if component_images:
+            self._image_server = FileServer()
+            if component_image_dir is None:
+                image_dir = DEFAULT_IMAGE_DIR
+            else:
+                image_dir = Path(component_image_dir)
+            try:
+                self._image_server.start(file_dir=image_dir)
+                self._image_names = ImageNames(port=self._image_server.port)
+                self._images = True
+            except (FileExistsError, ValueError) as err:
+                _log.error(
+                    f"Could not start image server, images will not be shown: {err}"
+                )
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
         """Write Mermaid text description."""
@@ -710,11 +731,10 @@ class Mermaid(Formatter):
         # Units
         for name, abbr in self._conn.units.items():
             node_name, node_class = self._get_node_info(name)
-            if self._images:
-                img_url = get_component_image(node_class)
-                print(f"@@ image for class {node_class} = {img_url}")
-                if img_url:
-                    node_str = f'{abbr}@{{ img: "{img_url}", label: {node_name}, h: 50, constraint: "on"}}'
+            img_url = self._image_names.get_url(node_class) if self._images else None
+            if img_url:
+                # images don't add name=value pairs (yet)
+                node_str = f'{abbr}@{{ img: "{img_url}", label: {node_name}, h: 50, constraint: "on"}}'
             elif self._unit_values:
                 if values := self._conn.unit_values[name]:
                     values_str = "\n".join((f"{k}={v}" for k, v in values.items()))
@@ -937,45 +957,3 @@ class D2(Formatter):
         if not values:
             return None
         return "\\n".join((f"{k} = {v}" for k, v in values.items()))
-
-
-try:
-    _images = Images()
-except FileNotFoundError:
-    _images = None
-
-
-def get_component_image(component: object) -> str | None:
-    """Get image filename for a component (based on class).
-
-    Returns:
-        Local URL; None if no match
-    """
-    if _images is None:
-        return None
-
-    if isinstance(component, str):
-        name = component
-    else:
-        try:
-            name = component.local_name
-        except AttributeError:
-            _log.error("Cannot get image for object without `.local_name` attribute")
-            return None
-
-    img, std_name = None, None
-    if name.endswith("Flash"):
-        std_name = "flash"
-    elif name.endswith("Mixer"):
-        std_name = "mixer"
-    elif name.endswith("Heater"):
-        std_name = "heater"
-    # todo: add more classes
-
-    if std_name:
-        try:
-            img = _images.get_url(std_name)
-        except KeyError:
-            _log.info(f"Image not found for '{std_name}'")
-
-    return img

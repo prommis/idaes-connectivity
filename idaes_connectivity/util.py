@@ -235,129 +235,192 @@ def get_stream_display_values(
     return result
 
 
-def _image_server_logging():
-    sh = logging.StreamHandler()
-    sh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s"))
-    sh.setLevel(logging.INFO)
-    _log.addHandler(sh)
-    _log.setLevel(logging.INFO)
+class FileServer:
+    """Serve files from a directory over HTTP.
 
-
-def run_image_server(
-    image_dir: Path, client_key: str = "default", base_port=8800, run_dir=None
-):
-    """Run a simple HTTP server that serves images (files) from `image_dir`.
-    By choosing different values for `client_key` you can run different servers (to different dirs)
-    on different ports. Put another way, there is one server running per value of `client_key`.
+    This is used to server Mermaid images in a local installation,
+    since Mermaid will not load them from a local file.
     """
-    _image_server_logging()
-    if run_dir is None:
-        run_dir = Path.home() / ".idaes"
-    if not run_dir.exists():
-        raise FileExistsError(
-            f"Directory to store server state does not exist: {run_dir}"
-        )
-    pid_file = run_dir / f"idaes_connectivity_image_server-{client_key}.pid"
 
-    if pid_file.exists():
-        # see if some process is really running at this PID
-        with open(pid_file, "r") as f:
-            pid_str = f.readline().strip()
-        try:
-            pid = int(pid_str)
-        except ValueError:
-            raise ValueError(
-                f"Cannot parse PID from first line of {pid_file}: '{pid_str}'"
-            )
-        pid_running = psutil.pid_exists(pid)
-        # if running, stop
-        if pid_running:
-            _log.info(f"Server is already running PID={pid}")
-            return
-        # otherwise, we are going to start a new server
+    #: Server host
+    HOST = "localhost"
+
+    #: Base server port
+    PORT = 8800
+
+    def __init__(self, run_dir: str | Path = None):
+        # logging
+        sh = logging.StreamHandler()
+        sh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s"))
+        self._log = logging.Logger("idaes_connectivity-FileServer")
+        self._log.addHandler(sh)
+        self._log.setLevel(logging.INFO)
+        sh.setLevel(logging.INFO)
+        # check and set run directory
+        if run_dir is None:
+            self._run_dir = Path.home() / ".idaes"
         else:
-            _log.warning(f"Server has PID file, but is not running PID={pid}")
-    else:
-        # no server, start a new one
-        _log.info("No existing server found")
-    # start new server, in a new process
-    host = "localhost"
-    server_log = run_dir / f"idaes_connectivity_image_server-{client_key}.log"
-    if pid := os.fork():
-        # parent, write PID
-        with open(pid_file, "w") as f:
-            f.write(f"{pid}\n")
-        _log.info(f"Started server PID={pid}. Log file={server_log}")
-        # return to caller in parent process
-    else:
-        log = logging.getLogger("idaes_connectivity.image_server")
-        handler = logging.FileHandler(server_log)
-        handler.setLevel(logging.INFO)
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
-        )
-        log.addHandler(handler)
-        log.setLevel(logging.INFO)
-
-        log.info("Starting server")
-        Handler = SimpleHTTPRequestHandler
-        os.chdir(image_dir)  # serve from this directory
-        port, ran_server = base_port, False
-        while not ran_server and port < base_port + 32:
-            try:
-                with socketserver.TCPServer((host, port), Handler) as httpd:
-                    ran_server = True
-                    log.info(f"Serving from dir {image_dir} at {host}:{port}")
-                    try:
-                        httpd.serve_forever()
-                    except Exception as err:
-                        log.info(f"Server stopped with error: {err}")
-            except OSError:
-                # assume port is used
-                _log.warning(f"Port {port} in use, trying {port + 1}")
-                port += 1
-        if not ran_server:
-            _log.error(f"Could not find open port between {base_port} and {port - 1}")
-        # done with child process
-
-
-def kill_image_servers(run_dir=None):
-    """Kill all image servers found in the `run_dir` (default is ~/.idaes)."""
-    _image_server_logging()
-    if run_dir is None:
-        run_dir = Path.home() / ".idaes"
-    if not run_dir.exists():
-        raise FileExistsError(f"Directory for server state does not exist: {run_dir}")
-    for filename in run_dir.glob("idaes_connectivity_image_server-*.pid"):
-        pid_file = run_dir / filename
-        with open(pid_file, "r") as f:
-            pid_str = f.readline().strip()
-        try:
-            pid = int(pid_str)
-        except ValueError:
-            raise ValueError(
-                f"Cannot parse PID from first line of {pid_file}: '{pid_str}'"
+            self._run_dir = Path(run_dir)
+        if not self._run_dir.exists():
+            raise FileExistsError(
+                f"Directory to store server state does not exist: {self._run_dir}"
             )
-        _log.info(f"Found server PID={pid} in file {pid_file}")
-        pid_running = psutil.pid_exists(pid)
-        if pid_running:
-            _log.info(f"Killing server PID={pid}")
+        self._port = -1
+
+    @property
+    def port(self):
+        return self._port
+
+    def start(self, file_dir: str | Path, client_key: str = "default"):
+        """Run a simple HTTP server that serves files from `file_dir`.
+
+        By choosing different values for `client_key` you can run different servers (to different dirs)
+        on different ports. Put another way, there is one server running per value of `client_key`.
+        """
+        # check and set directory for files served
+        file_dir = Path(file_dir)
+        if not file_dir.exists():
+            raise FileExistsError(
+                f"Directory from which to serve files does not exist: {file_dir}"
+            )
+
+        pid_file = self._run_dir / f"idaes_connectivity_image_server-{client_key}.pid"
+        port_file = self._run_dir / f"idaes_connectivity_image_server-{client_key}.port"
+
+        if pid_file.exists():
+            # see if some process is really running at this PID
+            with open(pid_file, "r") as f:
+                pid_str = f.readline().strip()
             try:
-                os.kill(pid, 9)
-            except OSError as err:
-                _log.error(f"Could not kill PID={pid}: {err}")
-            _log.info(f"Deleting PID file {pid_file}")
-            os.unlink(pid_file)
+                pid = int(pid_str)
+            except ValueError:
+                raise ValueError(
+                    f"Cannot parse PID from first line of {pid_file}: '{pid_str}'"
+                )
+            pid_running = psutil.pid_exists(pid)
+            # if running, stop
+            if pid_running:
+                self._log.info(f"Server is already running PID={pid}")
+                self._port = self._server_port(port_file)
+                return
+            # otherwise, we are going to start a new server
+            else:
+                self._log.warning(f"Server has PID file, but is not running PID={pid}")
         else:
-            _log.warning("Server at PID={pid} not running")
+            # no server, start a new one
+            self._log.info("No existing server found")
+        # start new server, in a new process
+        host = self.HOST
+        server_log = self._run_dir / f"idaes_connectivity_image_server-{client_key}.log"
+        if pid := os.fork():
+            # parent, write PID
+            with open(pid_file, "w") as f:
+                f.write(f"{pid}\n")
+            self._log.info(f"Started server PID={pid}. Log file={server_log}")
+            self._port = self._server_port(port_file)
+            # done with parent process
+        else:
+            log = logging.getLogger("idaes_connectivity.image_server")
+            handler = logging.FileHandler(server_log)
+            handler.setLevel(logging.INFO)
+            handler.setFormatter(
+                logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
+            )
+            log.addHandler(handler)
+            log.setLevel(logging.INFO)
+
+            log.info("Starting server")
+            Handler = SimpleHTTPRequestHandler
+            os.chdir(file_dir)  # serve from this directory
+            port, ran_server = self.PORT, False
+            while not ran_server and port < self.PORT + 32:
+                try:
+                    with socketserver.TCPServer((host, port), Handler) as httpd:
+                        ran_server = True
+                        with open(port_file, "w") as f:
+                            f.write(f"{port}\n")
+                        log.info(f"Serving from dir {file_dir} at {host}:{port}")
+                        try:
+                            httpd.serve_forever()
+                        except Exception as err:
+                            log.info(f"Server stopped with error: {err}")
+                except OSError:
+                    # assume port is used
+                    _log.warning(f"Port {port} in use, trying {port + 1}")
+                    port += 1
+            if not ran_server:
+                _log.error(
+                    f"Could not find open port between {self.PORT} and {port - 1}"
+                )
+            # done with child process
+
+    def _server_port(self, port_file) -> int:
+        # read port from file
+        port_value, tries = -1, 0
+        while port_value < 0 and tries < 5:
+            try:
+                with open(port_file, "r") as f:
+                    port_str = f.readline().strip()
+                try:
+                    port_value = int(port_str)
+                except ValueError:
+                    raise RuntimeError(
+                        f"Unexpected value for port in {port_file}: {port_str}"
+                    )
+            except FileExistsError:
+                tries += 1
+                _log.warning(f"Waiting for port file to exist ({tries})")
+            # wait a bit
+            time.sleep(1)
+
+        if port_value < 0:
+            raise RuntimeError(f"Could not read server port from {port_file}")
+        return port_value
+
+    def kill_all(self):
+        """Kill all image servers found in the run directory."""
+        for filename in self._run_dir.glob("idaes_connectivity_image_server-*.pid"):
+            pid_file = self._run_dir / filename
+            with open(pid_file, "r") as f:
+                pid_str = f.readline().strip()
+            try:
+                pid = int(pid_str)
+            except ValueError:
+                raise ValueError(
+                    f"Cannot parse PID from first line of {pid_file}: '{pid_str}'"
+                )
+            self._log.info(f"Found server PID={pid} in file {pid_file}")
+            pid_running = psutil.pid_exists(pid)
+            if pid_running:
+                self._log.info(f"Killing server PID={pid}")
+                try:
+                    os.kill(pid, 9)
+                except OSError as err:
+                    self._log.error(f"Could not kill PID={pid}: {err}")
+                self._log.info(f"Deleting PID file {pid_file}")
+                try:
+                    os.unlink(pid_file)
+                except OSError as err:
+                    self._log.error(f"Could not delete PID file: {err}")
+            else:
+                self._log.warning("Server at PID={pid} not running")
 
 
-# crude test framework for the image_server functions:
-# if __name__ == "__main__":
-#     import sys
+# crude test framework for the image_server functions
 
-#     arg = sys.argv[-1]
-#     if arg == "kill":
-#         kill_image_servers()
-#     else:
-#         run_image_server(Path(arg))
+if __name__ == "__main__":
+    import sys
+    from idaes_connectivity import const
+
+    arg = sys.argv[-1]
+
+    server = FileServer()
+
+    if arg == "kill":
+        server.kill_all()
+    else:
+        port = server.start(arg)
+        img = const.ImageNames(arg)
+        unit = "compressor"
+        url = img.get_url(unit, port)
+        print(f"URL for {unit} = {url}")

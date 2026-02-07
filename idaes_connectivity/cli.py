@@ -13,6 +13,7 @@ Command-line program
 """
 
 import argparse
+from importlib.resources import files as imp_files
 import logging
 from pathlib import Path
 import re
@@ -20,8 +21,9 @@ import sys
 
 # package
 import idaes_connectivity.base as ic
-from idaes_connectivity.const import OutputFormats, CONSOLE
+from idaes_connectivity.const import OutputFormats, CONSOLE, DEFAULT_IMAGE_DIR
 from idaes_connectivity.version import VERSION
+from idaes_connectivity.util import FileServer
 
 
 __author__ = "Dan Gunter (LBNL)"
@@ -294,6 +296,27 @@ def _process_log_options(module_name: str, args: argparse.Namespace) -> logging.
     return log
 
 
+import shutil
+
+
+def _copy_images():
+    # use importlib so this works on installed wheels, too
+    image_path = imp_files("idaes_connectivity.images")
+    n = 0
+    dst_dir = DEFAULT_IMAGE_DIR
+    suffixes = (".svg", ".png")
+    for filename in image_path.iterdir():
+        if filename.suffix not in suffixes:
+            continue
+        src = image_path / filename
+        dst = dst_dir / filename.name
+        _log.info(f"Copying image from {src} -> {dst}")
+        shutil.copy(src, dst)
+        n += 1
+    _log.info(f"Copied {n} images from {image_path} -> {dst_dir}")
+    return n
+
+
 def main(command_line=None):
     global _log
 
@@ -301,6 +324,17 @@ def main(command_line=None):
         description="Process and/or generate model connectivity information"
     )
     p.add_argument("--usage", action="store_true", help="Print usage with examples")
+    # Mermaid-image related
+    p.add_argument(
+        "--copy-images",
+        action="store_true",
+        help="Copy images to standard IDAES image directory (for Mermaid)",
+    )
+    p.add_argument(
+        "--kill-image-server",
+        action="store_true",
+        help="Kill all running image servers (for Mermaid)",
+    )
     # set nargs=? so --usage works without any other argument; though
     # this will require more checks later
     p.add_argument(
@@ -364,11 +398,19 @@ def main(command_line=None):
     if args.usage:
         print(USAGE)
         return 0
+    _log = _process_log_options("idaes_connectivity", args)
+    if args.copy_images:
+        n = _copy_images()
+        print(f"Copied {n} images")
+        return 0
+    if args.kill_image_server:
+        server = FileServer()
+        server.kill_all()
+        return 0
     if args.source is None:
         print("File or module source is required. Try --usage for details.\n")
         p.print_help()
         return 2
-    _log = _process_log_options("idaes_connectivity", args)
     if args.type is None:
         main_method = None
         if args.source.lower().endswith(".csv"):

@@ -14,7 +14,6 @@ Shared constants for idaes_connectivity
 # stdlib
 from enum import Enum
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from importlib.resources import files
 from pathlib import Path
 import threading
 
@@ -38,66 +37,33 @@ class Direction(Enum):
 
 CONSOLE = "-"
 
-
-class ImageType(Enum):
-    SVG = "svg"
-    PNG = "png"
-    ALL = "all"
+DEFAULT_IMAGE_DIR = Path.home() / ".idaes" / "images"
 
 
-class HttpImages:
-    """Provide access to image files by a standard name."""
+class ImageNames:
+    """Provide access to image files by a standard name.
 
-    DIRNAME = "images"  # relative to location of this file
+    Basic usage:
 
-    def __init__(self, host="localhost", port=8000, protocol="http"):
-        """Get list of images and associate with standard names."""
-        # use importlib so this works on installed wheels, too
-        self._image_path = files("idaes_connectivity.images")
+        ```
+        # assuming server in util.FileServer running on localhost and some port
+        #     server = FileServer(); port = server.start()
+        img_names = ImageNames(port=port)
+        # this will return a URL usable in a Mermaid diagram:
+        url = img_names.get_url("component-name")
+        ```
+    """
+
+    def __init__(self, port: int = -1, host: str = "localhost"):
+        """Get list of images and associate with standard names.
+
+        Args:
+            port: Port of image server
+            host: Host of image server. Defaults to "localhost".
+        """
         # give names to files
-        self._names = {}
-        self._set_names()
-        self._base_url = f"{protocol}://{host}:{port}"
-        self.host, self.port = host, port
-
-    def list_names(self, img_type: ImageType = ImageType.ALL) -> list[str]:
-        """List all of the names for which we have an image."""
-        return list(self._names[img_type].keys())
-
-    def get_url(self, name, img_type: ImageType = None) -> str:
-        """Get image URL (local server)"""
-        # choose mapping to search
-        if img_type is not None:
-            if img_type in self._names:
-                data = self._names[img_type]
-        else:
-            data = self._names[ImageType.ALL]
-        # look for name in mapping
-        if name not in data:
-            raise KeyError(f"Unknown image name '{name}'")
-        # get associated filename
-        filename = data[name]
-
-        return f"{self._base_url}/{filename}"
-
-    def _set_names(self):
-        """Find images in a directory and match them with names."""
-        self._names = {ImageType.SVG: {}, ImageType.PNG: {}, ImageType.ALL: {}}
-        for filepath in self._image_path.iterdir():
-            sfx = filepath.suffix
-            img_type = ImageType(sfx[1:]) if sfx in (".svg", ".png") else None
-            if img_type:
-                name = self._name(filepath.stem)
-                if name:
-                    filename = filepath.name
-                    self._names[img_type][name] = filename
-                    self._names[ImageType.ALL][name] = filename
-
-    def _name(self, s: str) -> str:
-        result = ""
-        s = s.lower()
-
-        if s in (
+        self._images = {}
+        for component in (
             "compressor",
             "cooler",
             "expander",
@@ -109,10 +75,75 @@ class HttpImages:
             "pump",
             "splitter",
         ):
-            result = s
-        elif s == "heat_exchanger_1":
-            result = "heat_exchanger"
-        elif s == "heater_1":
-            result = "heater"
+            self._images[component] = component + ".svg"
+        self._images.update(
+            {
+                "heat_exchanger": "heat_exchanger_1.svg",
+                "heater": "heater_1.svg",
+            }
+        )
+        self._port = port
+        self._host = host
 
-        return result
+    def list_filenames(self) -> list[str]:
+        """List all possible image filenames."""
+        return list(self._images.values())
+
+    def get_url(self, component) -> str | None:
+        """Get image URL.
+
+        Args:
+            component: Name of component class or component object
+
+        Raises:
+            KeyError: No component found by this name
+
+        Returns:
+            Full URL, usable by Mermaid, or None if component has no image
+        """
+        filename = self._filename(component)
+        return f"http://{self._host}:{self._port}/{filename}"
+
+    def get_filename(self, component) -> str | None:
+        """Get image filename
+
+        Args:
+            component: Name of component class or component object
+
+        Returns:
+            str | None: Filename, or None if not found
+        """
+        return self._filename(component)
+
+    def _filename(self, component) -> str | None:
+        name = self._component_name(component)
+        if name is None:
+            return None
+
+        if name not in self._images:
+            # should be there, if not None
+            raise RuntimeError(f"Unknown image name '{name}'")
+
+        return self._images[name]
+
+    def _component_name(self, component):
+        if isinstance(component, str):
+            name = component
+        else:
+            try:
+                name = component.local_name
+            except AttributeError:
+                raise AttributeError(
+                    "Cannot get image for object without `.local_name` attribute"
+                )
+
+        std_name = None
+        if name.endswith("Flash"):
+            std_name = "flash"
+        elif name.endswith("Mixer"):
+            std_name = "mixer"
+        elif name.endswith("Heater"):
+            std_name = "heater"
+        # todo: add more
+
+        return std_name
