@@ -392,13 +392,20 @@ def main(command_line=None):
         args = p.parse_args(args=command_line)
     else:
         args = p.parse_args()
+
+    # Initialize the logger
+    _log = _process_log_options("idaes_connectivity", args)
+
+    # Do something besides the diagram
     if args.version:
         print(VERSION)
         return 0
     if args.usage:
         print(USAGE)
         return 0
-    _log = _process_log_options("idaes_connectivity", args)
+
+    # For Mermaid images
+    # See util.FileServer, const.ImageNames, and base.Mermaid
     if args.copy_images:
         n = _copy_images()
         print(f"Copied {n} images")
@@ -407,6 +414,8 @@ def main(command_line=None):
         server = FileServer()
         server.kill_all()
         return 0
+
+    # Generate the mermaid diagram
     if args.source is None:
         print("File or module source is required. Try --usage for details.\n")
         p.print_help()

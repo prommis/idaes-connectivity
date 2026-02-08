@@ -684,21 +684,30 @@ class Mermaid(Formatter):
             self._streams_with_values = set()
 
         # If component images are desired, start image server, etc.
-        self._images = False
-        if component_images:
-            self._image_server = FileServer()
-            if component_image_dir is None:
-                image_dir = DEFAULT_IMAGE_DIR
-            else:
-                image_dir = Path(component_image_dir)
-            try:
-                self._image_server.start(file_dir=image_dir)
-                self._image_names = ImageNames(port=self._image_server.port)
-                self._images = True
-            except (FileExistsError, ValueError) as err:
-                _log.error(
-                    f"Could not start image server, images will not be shown: {err}"
-                )
+        self._images = component_images and self._start_image_server(
+            component_image_dir
+        )
+
+    def _start_image_server(self, component_image_dir: Path | str) -> bool:
+        started = False
+
+        self._image_server = FileServer()
+
+        if component_image_dir is None:
+            image_dir = DEFAULT_IMAGE_DIR
+        else:
+            image_dir = Path(component_image_dir)
+
+        try:
+            self._image_server.start(file_dir=image_dir)
+            self._image_names = ImageNames(port=self._image_server.port)
+            started = True
+        except (FileExistsError, ValueError) as err:
+            _log.error(
+                f"Could not start image server (unit images will not be shown): {err}"
+            )
+
+        return started
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
         """Write Mermaid text description."""
@@ -734,7 +743,7 @@ class Mermaid(Formatter):
             img_url = self._image_names.get_url(node_class) if self._images else None
             if img_url:
                 # images don't add name=value pairs (yet)
-                node_str = f'{abbr}@{{ img: "{img_url}", label: {node_name}, h: 50, constraint: "on"}}'
+                node_str = f'{abbr}@{{ img: "{img_url}", label: "{node_name}", h: 50, constraint: "on"}}'
             elif self._unit_values:
                 if values := self._conn.unit_values[name]:
                     values_str = "\n".join((f"{k}={v}" for k, v in values.items()))
@@ -759,14 +768,6 @@ class Mermaid(Formatter):
 
     def _get_node_info(self, name):
         return self._quote_name(name), self._conn.get_unit_class(name)
-
-    def _get_node_values(self):
-        if self._unit_values:
-            values = self._conn.unit_values[name]
-            if values:
-                values_str = "\n".join((f"{k}={v}" for k, v in values.items()))
-                display_name = f"{display_name}\n{values_str}"
-        return f"{abbr}[{display_name}]"
 
     def _get_mermaid_streams(self):
         """Get (possibly cleaned up) stream abbr. and names"""
