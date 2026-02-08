@@ -285,6 +285,10 @@ class FileServer:
                 self._pid = self._read_int_eventually(self._pid_file, "pid")
         return self._pid
 
+    @property
+    def run_dir(self):
+        return self._run_dir
+
     def start(self, file_dir: str | Path, client_key: str = "default"):
         """Run a simple HTTP server that serves files from `file_dir`.
 
