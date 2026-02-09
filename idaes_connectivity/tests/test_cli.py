@@ -191,6 +191,7 @@ def test_cli(
         args.extend(["--direction", direction])
     if verbosity is not None:
         args.append(f"-{verbosity}")
+    print(f"run cli.main with args: {args}")
     if return_code == -1:
         with pytest.raises(SystemExit):
             main(args)

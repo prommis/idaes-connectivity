@@ -252,6 +252,19 @@ class FileServer:
     PORT = 8800
 
     def __init__(self, run_dir: str | Path = None):
+        """Create, but don't yet start, the server.
+
+        Args:
+            run_dir: Directory to write output files.
+               Three files will be written to this directory when the server
+               starts, with the same base name and different suffixes
+                 - `NAME.pid` - file with the current process ID
+                 - `NAME.port` - file with the TCP listening port on localhost
+                 - `NAME.log` - log file from server process
+
+        Raises:
+            FileExistsError: If `run_dir` does not exist.
+        """
         # logging
         sh = logging.StreamHandler()
         sh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s"))
@@ -272,21 +285,36 @@ class FileServer:
         self._pid, self._pid_file = -1, None
 
     @property
-    def port(self):
+    def port(self) -> int:
+        """Get port of server.
+
+        Returns:
+            port number, or -1 if not running
+        """
         if self._port <= 0:
             if self._port_file is not None:
                 self._port = self._read_int_eventually(self._port_file, "port")
         return self._port
 
     @property
-    def pid(self):
+    def pid(self) -> int:
+        """Get PID of server
+
+        Returns:
+            process ID, or -1 if not running
+        """
         if self._pid <= 0:
             if self._pid_file is not None:
                 self._pid = self._read_int_eventually(self._pid_file, "pid")
         return self._pid
 
     @property
-    def run_dir(self):
+    def run_dir(self) -> Path:
+        """Get run directory.
+
+        Returns:
+           Run directory (as provided to constructor, or default)
+        """
         return self._run_dir
 
     def start(self, file_dir: str | Path, client_key: str = "default"):
@@ -294,6 +322,10 @@ class FileServer:
 
         By choosing different values for `client_key` you can run different servers (to different dirs)
         on different ports. Put another way, there is one server running per value of `client_key`.
+
+        Args:
+            file_dir: Directory for files
+            client_key: Distinguish different servers (for different clients)
         """
         # check and set directory for files served
         file_dir = Path(file_dir)
@@ -406,7 +438,10 @@ class FileServer:
         return value
 
     def kill_all(self):
-        """Kill all image servers found in the run directory."""
+        """Kill all image servers found in the run directory.
+
+        This is used by the command-line program `idaes-conn`.
+        """
         for filename in self._run_dir.glob("idaes_connectivity_image_server-*.pid"):
             pid_file = self._run_dir / filename
             with open(pid_file, "r") as f:

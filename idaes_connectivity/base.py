@@ -737,19 +737,33 @@ class Mermaid(Formatter):
             outfile.write(f"{i}class {all_streams} streamval;\n")
         # Get connections and which streams to show
         connections, show_streams = self._get_connections()
-        # Units
+        # Units. Handle variations:
+        #   1) plain = abbr["name"]
+        #   2) image = abbr@{ img: url, ... }
+        #   3) key/value = abbr["name"\n key="value:\n...]
+        #   4) key/value but no values, like (1)
         for name, abbr in self._conn.units.items():
             node_name, node_class = self._get_node_info(name)
             img_url = self._image_names.get_url(node_class) if self._images else None
             if img_url:
-                # images don't add name=value pairs (yet)
+                # image. images don't add key=value pairs (yet)
                 node_str = f'{abbr}@{{ img: "{img_url}", label: "{node_name}", h: 50, constraint: "on"}}'
-            elif self._unit_values:
-                if values := self._conn.unit_values[name]:
-                    values_str = "\n".join((f"{k}={v}" for k, v in values.items()))
-                    node_str = f"{abbr}[{node_name}\n{values_str}]"
             else:
-                node_str = f"{abbr}[{node_name}]"
+                # plain or key/value
+                nclass = f"::{node_class}" if self._unit_class else ""
+                node_str_base = f"{abbr}{nclass}[{node_name}"
+                if self._unit_values:
+                    # key/value
+                    if values := self._conn.unit_values[name]:
+                        # key/value with values
+                        values_str = "\n".join((f"{k}={v}" for k, v in values.items()))
+                        node_str = f"{node_str_base}\n{values_str}]"
+                    else:
+                        # key/value without values
+                        node_str = node_str_base + "]"
+                else:
+                    # plain
+                    node_str = node_str_base + "]"
             outfile.write(f"{i}{node_str}\n")
         # Streams
         for abbr, s in self._get_mermaid_streams():
