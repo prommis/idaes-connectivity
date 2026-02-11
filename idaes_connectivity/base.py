@@ -747,7 +747,7 @@ class Mermaid(Formatter):
             img_url = self._image_names.get_url(node_class) if self._images else None
             if img_url:
                 # image. images don't add key=value pairs (yet)
-                node_str = f'{abbr}@{{ img: "{img_url}", label: "{node_name}", h: 50, constraint: "on"}}'
+                node_str = f'{abbr}@{{ img: "{img_url}", label: {node_name}, h: 50, constraint: "on"}}'
             else:
                 # plain or key/value
                 nclass = f"::{node_class}" if self._unit_class else ""

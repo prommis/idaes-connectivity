@@ -54,6 +54,23 @@ class ImageNames:
         ```
     """
 
+    NAMES = (
+        "compressor",
+        "cooler",
+        "cstr",  #
+        "expander",
+        "fan",
+        "feed",  #
+        "flash",  #
+        "gibbs_reactor",
+        "heater",  #
+        "heat_exchanger",  #
+        "mixer",  #
+        "product",
+        "pump",
+        "splitter",
+    )
+
     def __init__(self, port: int = -1, host: str = "localhost"):
         """Get list of images and associate with standard names.
 
@@ -61,27 +78,7 @@ class ImageNames:
             port: Port of image server
             host: Host of image server. Defaults to "localhost".
         """
-        # give names to files
-        self._images = {}
-        for component in (
-            "compressor",
-            "cooler",
-            "expander",
-            "fan",
-            "feed",
-            "flash",
-            "mixer",
-            "product",
-            "pump",
-            "splitter",
-        ):
-            self._images[component] = component + ".svg"
-        self._images.update(
-            {
-                "heat_exchanger": "heat_exchanger_1.svg",
-                "heater": "heater_1.svg",
-            }
-        )
+        self._images = {n: f"{n}.svg" for n in self.NAMES}
         self._port = port
         self._host = host
 
@@ -102,6 +99,8 @@ class ImageNames:
             Full URL, usable by Mermaid, or None if component has no image
         """
         filename = self._filename(component)
+        if filename is None:
+            return None
         return f"http://{self._host}:{self._port}/{filename}"
 
     def get_filename(self, component) -> str | None:
@@ -128,6 +127,9 @@ class ImageNames:
 
     def _component_name(self, component):
         if isinstance(component, str):
+            comp = component.lower()
+            if comp in self.NAMES:
+                return comp  # already have standard name
             name = component
         else:
             try:
@@ -138,12 +140,18 @@ class ImageNames:
                 )
 
         std_name = None
-        if name.endswith("Flash"):
+
+        if name.endswith("CSTR"):
+            std_name = "cstr"
+        elif name.endswith("Feed"):
+            std_name = "feed"
+        elif name.endswith("Flash"):
             std_name = "flash"
-        elif name.endswith("Mixer"):
-            std_name = "mixer"
         elif name.endswith("Heater"):
             std_name = "heater"
-        # todo: add more
+        elif name.endswith("Mixer"):
+            std_name = "mixer"
+        elif name.endswith("HeatExchanger"):
+            std_name = "heat_exchanger"
 
         return std_name
