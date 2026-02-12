@@ -14,9 +14,9 @@ def example_csv():
 def example_mermaid():
     return [
         "flowchart LR",
-        "    Unit_B["M01"]",
-        "    Unit_C["H02"]",
-        "    Unit_D["F03"]",
+        '    Unit_B["M01"]',
+        '    Unit_C["H02"]',
+        '    Unit_D["F03"]',
         "    Unit_B --> Unit_C",
         "    Unit_C --> Unit_D",
     ]
