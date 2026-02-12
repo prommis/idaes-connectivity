@@ -51,10 +51,10 @@ jobs:
           - dev
           - standard
         python-version:
-          - "3.9"
-          # - "3.10"
+          - "3.10"
           - "3.11"
-          # - "3.12"
+          - "3.12"
+          - "3.13"
         os:
           - linux
           #- win64
@@ -100,6 +100,7 @@ jobs:
       - name: Run pytest
         run: |
           pip install pytest  # ensure pytest is installed (should do nothing if already present from requirements-dev.txt)
+          mkdir -p ~/.idaes/images  # for mermaid images
           pytest --pyargs idaes_connectivity --verbose
       - name: Upload coverage report as job artifact
         if: matrix.coverage
