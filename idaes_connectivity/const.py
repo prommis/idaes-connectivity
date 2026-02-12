@@ -40,17 +40,14 @@ CONSOLE = "-"
 DEFAULT_IMAGE_DIR = Path.home() / ".idaes" / "images"
 
 
-class ImageNames:
-    """Provide access to image files by a standard name.
+class ComponentNames:
+    """Get a standardized name for a component.
 
     Basic usage:
 
         ```
-        # assuming server in util.FileServer running on localhost and some port
-        #     server = FileServer(); port = server.start()
-        img_names = ImageNames(port=port)
-        # this will return a URL usable in a Mermaid diagram:
-        url = img_names.get_url("component-name")
+        comp_names = ComponentNames()
+        filename = comp_names.get_filename(component)
         ```
     """
 
@@ -71,87 +68,51 @@ class ImageNames:
         "splitter",
     )
 
-    def __init__(self, port: int = -1, host: str = "localhost"):
-        """Get list of images and associate with standard names.
-
-        Args:
-            port: Port of image server
-            host: Host of image server. Defaults to "localhost".
-        """
-        self._images = {n: f"{n}.svg" for n in self.NAMES}
-        self._port = port
-        self._host = host
-
-    def list_filenames(self) -> list[str]:
-        """List all possible image filenames."""
-        return list(self._images.values())
-
-    def get_url(self, component) -> str | None:
-        """Get image URL.
-
-        Args:
-            component: Name of component class or component object
-
-        Raises:
-            KeyError: No component found by this name
-
-        Returns:
-            Full URL, usable by Mermaid, or None if component has no image
-        """
-        filename = self._filename(component)
-        if filename is None:
-            return None
-        return f"http://{self._host}:{self._port}/{filename}"
+    def __init__(self):
+        """Constructor."""
+        self._filenames = {n: f"{n}.svg" for n in self.NAMES}
 
     def get_filename(self, component) -> str | None:
-        """Get image filename
+        """Get (image) filename associated with component
 
         Args:
-            component: Name of component class or component object
+            component: Name of component class, component object,
+                       or standardized name in `self.NAMES`
 
         Returns:
-            str | None: Filename, or None if not found
+            str | None: Filename, or None if no match
+
+        Raises:
+            AttributeError: if component was an object
+                            without a `local_name` attribute
         """
-        return self._filename(component)
+        try:
+            name = self._comp_name(component)
+            result = self._filenames[name]
+        except KeyError:
+            result = None
+        return result
 
-    def _filename(self, component) -> str | None:
-        name = self._component_name(component)
-        if name is None:
-            return None
-
-        if name not in self._images:
-            # should be there, if not None
-            raise RuntimeError(f"Unknown image name '{name}'")
-
-        return self._images[name]
-
-    def _component_name(self, component):
+    def _comp_name(self, component):
+        # extract the component's name
         if isinstance(component, str):
             comp = component.lower()
             if comp in self.NAMES:
                 return comp  # already have standard name
             name = component
         else:
-            try:
-                name = component.local_name
-            except AttributeError:
-                raise AttributeError(
-                    "Cannot get image for object without `.local_name` attribute"
-                )
-
-        std_name = None
-
+            name = component.local_name
+        # map to standardized name
         if name.endswith("CSTR"):
-            std_name = "cstr"
+            return "cstr"
         elif name.endswith("Feed"):
-            std_name = "feed"
+            return "feed"
         elif name.endswith("Flash"):
-            std_name = "flash"
+            return "flash"
         elif name.endswith("Heater"):
-            std_name = "heater"
+            return "heater"
         elif name.endswith("Mixer"):
-            std_name = "mixer"
+            return "mixer"
         elif name.endswith("HeatExchanger"):
-            std_name = "heat_exchanger"
-
-        return std_name
+            return "heat_exchanger"
+        raise KeyError(name)

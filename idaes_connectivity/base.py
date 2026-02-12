@@ -46,7 +46,7 @@ except ImportError as err:
 
 # package
 from idaes_connectivity.util import IdaesPaths, UnitIcon, FileServer
-from idaes_connectivity.const import Direction, ImageNames, DEFAULT_IMAGE_DIR
+from idaes_connectivity.const import Direction, ComponentNames, DEFAULT_IMAGE_DIR
 
 __author__ = "Dan Gunter (LBNL)"
 
@@ -684,9 +684,14 @@ class Mermaid(Formatter):
             self._streams_with_values = set()
 
         # If component images are desired, start image server, etc.
-        self._images = component_images and self._start_image_server(
-            component_image_dir
-        )
+        if component_images:
+            self._images = self._start_image_server(component_image_dir)
+            if self._images:
+                self._comp_names = ComponentNames()
+                self._host = self._image_server.HOST
+                self._port = self._image_server.port
+        else:
+            self._images = False
 
     def _start_image_server(self, component_image_dir: Path | str) -> bool:
         started = False
@@ -700,7 +705,6 @@ class Mermaid(Formatter):
 
         try:
             self._image_server.start(file_dir=image_dir)
-            self._image_names = ImageNames(port=self._image_server.port)
             started = True
         except (FileExistsError, ValueError) as err:
             _log.error(
@@ -744,8 +748,7 @@ class Mermaid(Formatter):
         #   4) key/value but no values, like (1)
         for name, abbr in self._conn.units.items():
             node_name, node_class = self._get_node_info(name)
-            img_url = self._image_names.get_url(node_class) if self._images else None
-            if img_url:
+            if self._images and (img_url := self._get_url(node_class)):
                 # image. images don't add key=value pairs (yet)
                 node_str = f'{abbr}@{{ img: "{img_url}", label: {node_name}, h: 50, constraint: "on"}}'
             else:
@@ -772,6 +775,12 @@ class Mermaid(Formatter):
         # Connections
         for s in connections:
             outfile.write(f"{i}{s}\n")
+
+    def _get_url(self, node_class):
+        return (  # returns None if filename=None
+            self._comp_names.get_filename(node_class)
+            and f"http://{self._host}:{self._port}/{filename}"
+        )
 
     @staticmethod
     def _format_stream_values(data):

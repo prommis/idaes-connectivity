@@ -483,7 +483,7 @@ if __name__ == "__main__":
         server.kill_all()
     else:
         port = server.start(arg)
-        img = const.ImageNames(arg)
+        img = const.ComponentNames(arg)
         unit = "compressor"
         url = img.get_url(unit, port)
         print(f"URL for {unit} = {url}")
