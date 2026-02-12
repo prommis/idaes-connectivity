@@ -100,7 +100,7 @@ def test_show(tmpdir_factory):
     _, conn = setup()
     fn = tmpdir_factory.mktemp("data").join("img.png")
 
-    # conn.show()
+    # conn.show() -- don't open any windows
     conn.save(save_file=fn)
     test_data_dir = Path(__file__).parent.absolute() / "test_image.png"
 
