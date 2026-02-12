@@ -778,9 +778,8 @@ class Mermaid(Formatter):
 
     def _get_url(self, node_class):
         return (  # returns None if filename=None
-            self._comp_names.get_filename(node_class)
-            and f"http://{self._host}:{self._port}/{filename}"
-        )
+            filename := self._comp_names.get_filename(node_class)
+        ) and f"http://{self._host}:{self._port}/{filename}"
 
     @staticmethod
     def _format_stream_values(data):
