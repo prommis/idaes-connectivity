@@ -35,6 +35,7 @@ dependencies = [
     "ipython >= 8.3.0",
     "idaes-pse >= 2.7.0",
     "pandas >= 2.2.3",
+    "psutil >= 7.2.2",
     "requests"
 ]
 [project.scripts]
@@ -43,6 +44,9 @@ idaes-conn = "idaes_connectivity.cli:main"
 [tool.setuptools]
 packages = ["idaes_connectivity"]
 
+[tool.setuptools.package-data]
+idaes_connectivity = ["images/*.png", "images/*.svg"]
+ 
 [tool.setuptools_scm]
 
 [tool.pylint.main]

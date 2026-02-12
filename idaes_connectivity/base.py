@@ -45,8 +45,8 @@ except ImportError as err:
     warnings.warn(f"Could not import pyomo: {err}")
 
 # package
-from idaes_connectivity.util import IdaesPaths, UnitIcon
-from idaes_connectivity.const import Direction
+from idaes_connectivity.util import IdaesPaths, UnitIcon, FileServer
+from idaes_connectivity.const import Direction, ComponentNames, DEFAULT_IMAGE_DIR
 
 __author__ = "Dan Gunter (LBNL)"
 
@@ -656,7 +656,13 @@ class Mermaid(Formatter):
         "indent": "    ",
     }
 
-    def __init__(self, connectivity: Connectivity, **kwargs):
+    def __init__(
+        self,
+        connectivity: Connectivity,
+        component_images=False,
+        component_image_dir=None,
+        **kwargs,
+    ):
         """Constructor. See class `defaults` for default values.
 
         Args:
@@ -676,6 +682,36 @@ class Mermaid(Formatter):
         self._direction = self._parse_direction(kwargs["direction"])
         if self._stream_values:
             self._streams_with_values = set()
+
+        # If component images are desired, start image server, etc.
+        if component_images:
+            self._images = self._start_image_server(component_image_dir)
+            if self._images:
+                self._comp_names = ComponentNames()
+                self._host = self._image_server.HOST
+                self._port = self._image_server.port
+        else:
+            self._images = False
+
+    def _start_image_server(self, component_image_dir: Path | str) -> bool:
+        started = False
+
+        self._image_server = FileServer()
+
+        if component_image_dir is None:
+            image_dir = DEFAULT_IMAGE_DIR
+        else:
+            image_dir = Path(component_image_dir)
+
+        try:
+            self._image_server.start(file_dir=image_dir)
+            started = True
+        except (FileExistsError, ValueError) as err:
+            _log.error(
+                f"Could not start image server (unit images will not be shown): {err}"
+            )
+
+        return started
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
         """Write Mermaid text description."""
@@ -705,9 +741,33 @@ class Mermaid(Formatter):
             outfile.write(f"{i}class {all_streams} streamval;\n")
         # Get connections and which streams to show
         connections, show_streams = self._get_connections()
-        # Units
-        for s in self._get_mermaid_units():
-            outfile.write(f"{i}{s}\n")
+        # Units. Handle variations:
+        #   1) plain = abbr["name"]
+        #   2) image = abbr@{ img: url, ... }
+        #   3) key/value = abbr["name"\n key="value:\n...]
+        #   4) key/value but no values, like (1)
+        for name, abbr in self._conn.units.items():
+            node_name, node_class = self._get_node_info(name)
+            if self._images and (img_url := self._get_url(node_class)):
+                # image. images don't add key=value pairs (yet)
+                node_str = f'{abbr}@{{ img: "{img_url}", label: {node_name}, h: 50, constraint: "on"}}'
+            else:
+                # plain or key/value
+                nclass = f"::{node_class}" if self._unit_class else ""
+                node_str_base = f"{abbr}{nclass}[{node_name}"
+                if self._unit_values:
+                    # key/value
+                    if values := self._conn.unit_values[name]:
+                        # key/value with values
+                        values_str = "\n".join((f"{k}={v}" for k, v in values.items()))
+                        node_str = f"{node_str_base}\n{values_str}]"
+                    else:
+                        # key/value without values
+                        node_str = node_str_base + "]"
+                else:
+                    # plain
+                    node_str = node_str_base + "]"
+            outfile.write(f"{i}{node_str}\n")
         # Streams
         for abbr, s in self._get_mermaid_streams():
             if abbr in show_streams:
@@ -716,6 +776,11 @@ class Mermaid(Formatter):
         for s in connections:
             outfile.write(f"{i}{s}\n")
 
+    def _get_url(self, node_class):
+        return (  # returns None if filename=None
+            filename := self._comp_names.get_filename(node_class)
+        ) and f"http://{self._host}:{self._port}/{filename}"
+
     @staticmethod
     def _format_stream_values(data):
         text_list = []
@@ -723,20 +788,8 @@ class Mermaid(Formatter):
             text_list.append(f"{k} = {v}")
         return "\n".join(text_list)
 
-    def _get_mermaid_units(self):
-        for name, abbr in self._conn.units.items():
-            qname = self._quote_name(name)
-            if self._unit_class:
-                klass = self._conn.get_unit_class(name)
-                display_name = f"{qname}::{klass}"
-            else:
-                display_name = qname
-            if self._unit_values:
-                values = self._conn.unit_values[name]
-                if values:
-                    values_str = "\n".join((f"{k}={v}" for k, v in values.items()))
-                    display_name = f"{display_name}\n{values_str}"
-            yield f"{abbr}[{display_name}]"
+    def _get_node_info(self, name):
+        return self._quote_name(name), self._conn.get_unit_class(name)
 
     def _get_mermaid_streams(self):
         """Get (possibly cleaned up) stream abbr. and names"""
