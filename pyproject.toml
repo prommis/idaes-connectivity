@@ -1,13 +1,15 @@
 [build-system]
 requires = [
     "setuptools >= 64",
-    "setuptools_scm >= 7",
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "idaes_connectivity"
+name = "idaes-connectivity"
+description = "Tools to display and export connectivity within IDAES process models."
 readme = "README.md"
+requires-python = ">=3.9"
+license = {file = "LICENSE.md"}
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: End Users/Desktop",
@@ -38,16 +40,24 @@ dependencies = [
     "psutil >= 7.2.2",
     "requests"
 ]
+
+[project.urls]
+Homepage = "https://github.com/prommis/idaes-connectivity"
+Documentation = "https://prommis.github.io/idaes-connectivity/"
+Repository = "https://github.com/prommis/idaes-connectivity"
+Issues = "https://github.com/prommis/idaes-connectivity/issues"
+
 [project.scripts]
 idaes-conn = "idaes_connectivity.cli:main"
 
 [tool.setuptools]
-packages = ["idaes_connectivity"]
+packages = ["idaes_connectivity", "idaes_connectivity.tests", "idaes_connectivity.images"]
 
 [tool.setuptools.package-data]
 idaes_connectivity = ["images/*.png", "images/*.svg"]
- 
-[tool.setuptools_scm]
+
+[tool.setuptools.dynamic]
+version = {attr = "idaes_connectivity.version.VERSION"}
 
 [tool.pylint.main]
 py-version = "3.9"

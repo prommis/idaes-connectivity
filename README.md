@@ -6,4 +6,8 @@
 # IDAES Model Connectivity
 Tools to display connectivity within [IDAES](https://idaes.org) models.
 
+```shell
+pip install idaes-connectivity
+```
+
 [Documentation](https://prommis.github.io/idaes-connectivity/)
