@@ -29,7 +29,7 @@ import logging
 from pathlib import Path
 import re
 import sys
-from typing import TextIO, Union, Optional, List, Dict
+from typing import TextIO, Tuple, Union, Optional, List, Dict
 import warnings
 
 from PIL import Image as im
@@ -402,6 +402,7 @@ class Connectivity:
         n_cols = len(self._header)
         connections = {s: [None, None] for s in streams.values()}
         for i, row in enumerate(self._rows):
+            _log.debug(f"_build_connections: row {i}: {row}")
             if not row:
                 continue
             stream_name = row[0]
@@ -439,7 +440,7 @@ class Connectivity:
         units_ord, units_idx = {}, 0
         units, streams = [], []
         streams_ord, streams_idx = {}, 0
-        rows, empty = [], True
+        rows = []
         arcs = fs.component_objects(Arc, descend_into=self._arc_descend)
 
         sorted_arcs = sorted(arcs, key=lambda arc: arc.name)
@@ -448,45 +449,82 @@ class Connectivity:
             _log.debug(f"Arc full names : {[a.name for a in sorted_arcs]}")
         self._build_name_map(sorted_arcs)
 
-        for comp in sorted_arcs:
-            stream_name = comp.name  # .getname()
-            src, dst = comp.source.parent_block(), comp.dest.parent_block()
-            src_name, dst_name = self._model_unit_name(src), self._model_unit_name(dst)
-            self._unit_classes[src_name] = self._model_unit_class(src)
-            self._unit_classes[dst_name] = self._model_unit_class(dst)
-            src_i, dst_i, stream_i = -1, -1, -1
+        def _add_stream(
+            streams_idx,  # modified and returned
+            units_idx,  # modified and returned
+            stream_name,
+            src_name,
+            dst_name,
+        ) -> Tuple[int, int]:
+            """Encapsulate logic of adding a stream."""
+            dbg = _log.isEnabledFor(logging.DEBUG)
+            stream_row = -1
+            # get row for stream
             try:
                 idx = streams_ord[stream_name]
             except KeyError:
+                # create new row
                 streams.append(stream_name)
                 idx = streams_ord[stream_name] = streams_idx
                 streams_idx += 1
-                if empty:  # first entry in matrix
-                    rows = [[]]
-                    empty = False
+                if len(rows) == 0:  # first entry in matrix
+                    rows.append([])
                 else:
                     rows.append([0] * len(rows[0]))
-            stream_i = idx
+            stream_row = idx
 
             # build rows
             endpoints = [None, None]
-            for ep, unit_name in enumerate(
-                [
-                    src_name,
-                    dst_name,
-                ]
-            ):
+            for ep, unit_name in enumerate([src_name, dst_name]):
                 try:
                     idx = units_ord[unit_name]
+                    if dbg:
+                        _log.debug(f"add_streams {unit_name}[{ep}]={idx}")
                 except KeyError:  # create new column
+                    if dbg:
+                        _log.debug(
+                            f"add_streams {unit_name}[{ep}]= {units_idx}/New column"
+                        )
                     units.append(unit_name)
                     idx = units_ord[unit_name] = units_idx
                     units_idx += 1
                     for row in rows:
                         row.append(0)
                 endpoints[ep] = idx
-            rows[stream_i][endpoints[0]] = -1
-            rows[stream_i][endpoints[1]] = 1
+            if dbg:
+                _log.debug(f"add streams: row[{stream_row}][{endpoints[0]}] => -1")
+            rows[stream_row][endpoints[0]] = -1
+            if dbg:
+                _log.debug(f"add streams: row[{stream_row}][{endpoints[1]}] => 1")
+            rows[stream_row][endpoints[1]] = 1
+
+            return streams_idx, units_idx
+
+        # Main loop through arcs
+        for comp in sorted_arcs:
+            # handle indexed or non-indexed streams
+            if comp.is_indexed:
+                stream_set = list(comp.values())
+            else:
+                stream_set = [comp]
+            for comp_stream in stream_set:
+                stream_name = comp_stream.name
+                src, dst = (
+                    comp_stream.source.parent_block(),
+                    comp_stream.dest.parent_block(),
+                )
+                src_name, dst_name = self._model_unit_name(src), self._model_unit_name(
+                    dst
+                )
+                self._unit_classes[src_name] = self._model_unit_class(src)
+                self._unit_classes[dst_name] = self._model_unit_class(dst)
+                streams_idx, units_idx = _add_stream(
+                    streams_idx,
+                    units_idx,
+                    stream_name,
+                    src_name,
+                    dst_name,
+                )
 
         self._header = ["Arcs"] + units
         self._rows = [[streams[i]] + r for i, r in enumerate(rows)]
@@ -500,49 +538,61 @@ class Connectivity:
         if len(arcs) < 2:
             return
         # split names by "." into tuples
-        name_tuples = []
+        name_tuples = set()
         for comp in arcs:
-            for p in comp.source, comp.dest:
-                nm = p.parent_block().name.split(".")
-                name_tuples.append(nm)
-        # iteratively look if all prefixes of length n are the same
-        n = 1
-        while True:
-            prefixes = {tuple(nm[:n]) for nm in name_tuples}
-            if len(prefixes) > 1:  # not common to all = stop
-                n -= 1
-                break
-            n += 1
-        if n > 0:
-            self._name_map = {".".join(k): ".".join(k[n:]) for k in name_tuples}
+            if comp.is_indexed():
+                for comp_item in comp.values():
+                    for p in comp_item.source, comp_item.dest:
+                        parent_name = p.parent_block().name
+                        nm = tuple(parent_name.split("."))
+                        name_tuples.add(nm)
+            else:
+                for p in comp.source, comp.dest:
+                    nm = p.parent_block().name.split(".")
+                    name_tuples.add(tuple(nm))
 
-    def _build_name_map(self, arcs):
-        """Mapping to strip off any prefixes common to all unit names.
-        This mapping is used by :func:`_model_unit_name`.
-        """
-        self._name_map = None
-        if len(arcs) < 2:
+        # abort if empty!
+        if not name_tuples:
+            _log.warning("No arcs found in model")
+            self._name_map = {}
             return
-        # split names by "." into tuples
-        name_tuples = []
-        for comp in arcs:
-            for p in comp.source, comp.dest:
-                nm = p.parent_block().name.split(".")
-                name_tuples.append(nm)
-        # iteratively look if all prefixes of length n are the same
+
+        # Find and strip common prefixes
+        prefix_len = self._find_common_prefix_len(name_tuples)
+        # Strip common prefixes (if any)
+        if prefix_len > 0:
+            self._name_map = {
+                ".".join(k): ".".join(k[prefix_len:]) for k in name_tuples
+            }
+
+    @staticmethod
+    def _find_common_prefix_len(tuple_list) -> int:
+        """Get common prefix length (to strip) from a list of tuples."""
+        if len(tuple_list) < 1:
+            return 0  # for len=1, we still don't want to strip it
+        shortest_tuple = min(map(len, tuple_list))
         n = 1
-        while True:
-            prefixes = {tuple(nm[:n]) for nm in name_tuples}
-            if len(prefixes) > 1:  # not common to all = stop
-                n -= 1
-                break
+        while n <= shortest_tuple:
+            # continue only if the set of prefixes is length 1,
+            # which means they are all the same
+            if len({tuple(nm[:n]) for nm in tuple_list}) > 1:
+                return n - 1
             n += 1
-        if n > 0:
-            self._name_map = {".".join(k): ".".join(k[n:]) for k in name_tuples}
+        return shortest_tuple
 
     def _model_unit_name(self, block):
         """Get the unit name for a Pyomo/IDAES block."""
-        return block.name if self._name_map is None else self._name_map[block.name]
+        name = block.name
+
+        # strip trailing index, if any
+        # if name.endswith("]"):
+        #    index_start = name.find("[")
+        #    name = name[:index_start]
+
+        if self._name_map is None:
+            return name
+
+        return self._name_map.get(name, name)
 
     def _model_unit_class(self, block):
         class_name = block.__class__.__name__
