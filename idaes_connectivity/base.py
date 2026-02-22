@@ -163,7 +163,7 @@ class Connectivity:
                         flowsheet = getattr(input_model, model_flowsheet_attr)
                     except AttributeError as err:
                         raise ModelLoadError(err)
-                self._load_model(flowsheet)
+                self._create_from_model(flowsheet)
             elif input_file is not None or input_data is not None:
                 _log.info("[begin] load from file or data")
                 if input_file is not None:
@@ -435,8 +435,9 @@ class Connectivity:
                     connections[stream_abbr][conn_index] = unit_abbr
         return connections
 
-    def _load_model(self, fs):
-        _log.info("_begin_ load model")
+    def _create_from_model(self, fs):
+        _log.info("begin:_create_from_model")
+
         units_ord, units_idx = {}, 0
         units, streams = [], []
         streams_ord, streams_idx = {}, 0
@@ -445,68 +446,20 @@ class Connectivity:
 
         sorted_arcs = sorted(arcs, key=lambda arc: arc.name)
         if _log.isEnabledFor(logging.DEBUG):
-            _log.debug(f"Arc short names: {[a.getname() for a in sorted_arcs]}")
-            _log.debug(f"Arc full names : {[a.name for a in sorted_arcs]}")
+            _log.debug(f"arc short names: {[a.getname() for a in sorted_arcs]}")
+            _log.debug(f"arc full names : {[a.name for a in sorted_arcs]}")
+        # create `self._name_map`: arc names to shortened names
+        # with common prefixes stripped
         self._build_name_map(sorted_arcs)
 
-        def _add_stream(
-            streams_idx,  # modified and returned
-            units_idx,  # modified and returned
-            stream_name,
-            src_name,
-            dst_name,
-        ) -> Tuple[int, int]:
-            """Encapsulate logic of adding a stream."""
-            dbg = _log.isEnabledFor(logging.DEBUG)
-            stream_row = -1
-            # get row for stream
-            try:
-                idx = streams_ord[stream_name]
-            except KeyError:
-                # create new row
-                streams.append(stream_name)
-                idx = streams_ord[stream_name] = streams_idx
-                streams_idx += 1
-                if len(rows) == 0:  # first entry in matrix
-                    rows.append([])
-                else:
-                    rows.append([0] * len(rows[0]))
-            stream_row = idx
-
-            # build rows
-            endpoints = [None, None]
-            for ep, unit_name in enumerate([src_name, dst_name]):
-                try:
-                    idx = units_ord[unit_name]
-                    if dbg:
-                        _log.debug(f"add_streams {unit_name}[{ep}]={idx}")
-                except KeyError:  # create new column
-                    if dbg:
-                        _log.debug(
-                            f"add_streams {unit_name}[{ep}]= {units_idx}/New column"
-                        )
-                    units.append(unit_name)
-                    idx = units_ord[unit_name] = units_idx
-                    units_idx += 1
-                    for row in rows:
-                        row.append(0)
-                endpoints[ep] = idx
-            if dbg:
-                _log.debug(f"add streams: row[{stream_row}][{endpoints[0]}] => -1")
-            rows[stream_row][endpoints[0]] = -1
-            if dbg:
-                _log.debug(f"add streams: row[{stream_row}][{endpoints[1]}] => 1")
-            rows[stream_row][endpoints[1]] = 1
-
-            return streams_idx, units_idx
-
-        # Main loop through arcs
+        # Main loop, each arc builds one row in `rows`
         for comp in sorted_arcs:
-            # handle indexed or non-indexed streams
+            # Create list of arcs (streams), whether indexed or no
             if comp.is_indexed:
                 stream_set = list(comp.values())
             else:
                 stream_set = [comp]
+            # Loop through list of streams
             for comp_stream in stream_set:
                 stream_name = comp_stream.name
                 src, dst = (
@@ -516,19 +469,84 @@ class Connectivity:
                 src_name, dst_name = self._model_unit_name(src), self._model_unit_name(
                     dst
                 )
+                # record the class of the source and dest
                 self._unit_classes[src_name] = self._model_unit_class(src)
                 self._unit_classes[dst_name] = self._model_unit_class(dst)
-                streams_idx, units_idx = _add_stream(
+                # add the stream to the rows
+                streams_idx, units_idx = self._add_model_stream(
                     streams_idx,
                     units_idx,
                     stream_name,
                     src_name,
                     dst_name,
+                    streams,
+                    streams_ord,
+                    units,
+                    units_ord,
+                    rows,
                 )
 
+        # ["Arcs", "<Unit-name1>", "<Unit-name2>", ...]
         self._header = ["Arcs"] + units
+        # ["<stream name>", 0|1|-1, 0|1|-1, ...]
         self._rows = [[streams[i]] + r for i, r in enumerate(rows)]
-        _log.info("_end_ load model")
+
+        _log.info("end:_create_from_model")
+
+    @staticmethod
+    def _add_model_stream(
+        streams_idx,  # current num streams, modified and returned
+        units_idx,  # current num units, modified and returned
+        stream_name,  # name of stream being added
+        src_name,  # source unit name
+        dst_name,  # destination unit name
+        streams,  # current list of streams
+        streams_ord,  # list of streams, ordered
+        units,  # current list of units
+        units_ord,  # list of units, ordered
+        rows,  # resulting rows of connectivity info
+    ) -> Tuple[int, int]:
+        """Encapsulate logic of adding a stream from the model."""
+        dbg = _log.isEnabledFor(logging.DEBUG)
+        stream_row = -1
+        # get row for stream
+        try:
+            idx = streams_ord[stream_name]
+        except KeyError:
+            # create new row
+            streams.append(stream_name)
+            idx = streams_ord[stream_name] = streams_idx
+            streams_idx += 1
+            if len(rows) == 0:  # first entry in matrix
+                rows.append([])
+            else:
+                rows.append([0] * len(rows[0]))
+        stream_row = idx
+
+        # build rows
+        endpoints = [None, None]
+        for ep, unit_name in enumerate([src_name, dst_name]):
+            try:
+                idx = units_ord[unit_name]
+                if dbg:
+                    _log.debug(f"add_streams {unit_name}[{ep}]={idx}")
+            except KeyError:  # create new column
+                if dbg:
+                    _log.debug(f"add_streams {unit_name}[{ep}]= {units_idx}/New column")
+                units.append(unit_name)
+                idx = units_ord[unit_name] = units_idx
+                units_idx += 1
+                for row in rows:
+                    row.append(0)
+            endpoints[ep] = idx
+        if dbg:
+            _log.debug(f"add streams: row[{stream_row}][{endpoints[0]}] => -1")
+        rows[stream_row][endpoints[0]] = -1
+        if dbg:
+            _log.debug(f"add streams: row[{stream_row}][{endpoints[1]}] => 1")
+        rows[stream_row][endpoints[1]] = 1
+
+        return streams_idx, units_idx
 
     def _build_name_map(self, arcs):
         """Mapping to strip off any prefixes common to all unit names.
