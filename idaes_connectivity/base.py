@@ -602,11 +602,6 @@ class Connectivity:
         """Get the unit name for a Pyomo/IDAES block."""
         name = block.name
 
-        # strip trailing index, if any
-        # if name.endswith("]"):
-        #    index_start = name.find("[")
-        #    name = name[:index_start]
-
         if self._name_map is None:
             return name
 
