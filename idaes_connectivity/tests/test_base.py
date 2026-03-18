@@ -97,16 +97,11 @@ def test_defaults_formatters(klass):
 
 
 @pytest.mark.unit
-def test_show(tmpdir_factory):
+def test_save_image(tmpdir_factory):
     _, conn = setup()
-    fn = tmpdir_factory.mktemp("data").join("img.png")
-
-    # conn.show() -- don't open any windows
-    conn.save(save_file=fn)
-    test_data_dir = Path(__file__).parent.absolute() / "test_image.png"
-
-    Image.open(test_data_dir).convert("RGB")
-    Image.open(fn).convert("RGB")
+    filename = tmpdir_factory.mktemp("data").join("img.png")
+    conn.save(save_file=filename)
+    Image.open(filename).convert("RGB")
 
 
 @pytest.mark.unit
