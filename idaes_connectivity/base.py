@@ -32,7 +32,7 @@ import shutil
 import subprocess
 from tempfile import NamedTemporaryFile
 import time
-from typing import TextIO, Tuple, Union, Optional, List, Dict
+from typing import TextIO, Tuple, Union, Optional, List, Dict, Any
 import warnings
 
 from PIL import Image as im
@@ -40,6 +40,8 @@ import base64
 import io, requests
 
 # third-party
+from IPython.display import Markdown
+
 try:
     import pyomo
     from pyomo.network import Arc
@@ -626,8 +628,57 @@ class Formatter(abc.ABC):
 
     defaults = {}  # extend in subclasses
 
-    def __init__(self, connectivity: Connectivity, **kwargs):
-        self._conn = connectivity
+    def __init__(self, connectivity: Connectivity | Any, **kwargs):
+        """Constructor.
+
+        Arguments:
+            connectivity: Either a Connectivity instance or any valid value
+                          for `input_*` arguments that could be passed to
+                          create a Connectivity instance.
+
+        Raises:
+            ValueError: Unable to construct Connectivity instance from provided arg
+        """
+        if isinstance(connectivity, Connectivity):
+            self._conn = connectivity
+        else:
+            self._conn = self._connectivity_factory(connectivity)
+
+    def _connectivity_factory(self, arg) -> Connectivity:
+        kwargs = {}
+        # a string can be many things:
+        # path, CSV, module name
+        if isinstance(arg, str):
+            try:
+                # is this a path?
+                path = Path(arg)
+                if not path.exists():
+                    raise ValueError()
+                kwargs["input_file"] = path
+            except ValueError:
+                # not a path. is it a CSV blob?
+                csv_data = arg.split("\n")
+                if len(csv_data) > 1:
+                    hdr = csv_data[0].split(",")
+                    if len(hdr) > 1:
+                        kwargs["input_data"] = arg
+                else:
+                    # not CSV. is it a module name?
+                    kwargs["input_module"] = arg
+        # things that are specifically file paths
+        elif isinstance(arg, TextIO) or isinstance(arg, Path):
+            kwargs["input_file"] = arg
+        # otherwise it is probably a model
+        elif hasattr(arg, "component_objects"):
+            kwargs["input_model"] = arg
+
+        if not kwargs:  # nothing matched!
+            raise ValueError(
+                "Argument is not an input file, Pyomo/IDAES model, "
+                "module name, or CSV text data"
+            )
+
+        return Connectivity(**kwargs)
 
     @staticmethod
     def _parse_direction(d):
@@ -778,6 +829,11 @@ class Mermaid(Formatter):
             )
 
         return started
+
+    def _repr_markdown_(self):
+        """Display using Markdown in a Jupyter Notebook."""
+        graph_str = self.write(None)
+        return f"```mermaid\n{graph_str}\n```"
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
         """Write Mermaid text description."""
@@ -953,7 +1009,7 @@ class MermaidImage(Formatter):
         self._formatter.write(tmpfile)
         tmpfile.flush()
         time.sleep(1)  # lame, but safer
-        # run mmdc on temporary file, writing its image output to provided file
+        # run mmdc on temporary file, writing its image output to user-provided file
         args = [self._bin, "-i", tmpfile.name, "-o", output_file] + self._opt
         _log.info(f"running: {' '.join(args)}")
         try:
