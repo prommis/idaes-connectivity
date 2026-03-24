@@ -17,6 +17,7 @@ from importlib.resources import files as imp_files
 import logging
 from pathlib import Path
 import re
+import shutil
 import sys
 
 # package
@@ -106,7 +107,7 @@ def csv_main(args) -> int:
 
     try:
         conn = ic.Connectivity(input_file=args.source)
-        formatter = get_formatter(conn, args.to)
+        formatter = get_formatter(conn, args.to, args)
         formatter.write(args.ofile)
     except (RuntimeError, ic.DataLoadError) as err:
         _log.info("_end_ create from matrix (1)")
@@ -130,7 +131,7 @@ def module_main(args) -> int:
     options, conn_kw = _code_main(args)
     try:
         conn = ic.Connectivity(input_module=args.source, **conn_kw)
-        formatter = get_formatter(conn, args.to, options)
+        formatter = get_formatter(conn, args.to, args, options=options)
         formatter.write(args.ofile)
     except (RuntimeError, ic.ModelLoadError) as err:
         _log.info("_end_ create from Python model (1)")
@@ -152,27 +153,32 @@ def py_main(args) -> int:
     _log.info("_begin_ create from Python script")
     options, conn_kw = _code_main(args)
     script_globals = {}
+    old_argv = sys.argv
+    sys.argv = [args.source, *args.extra_args]
     try:
-        with open(args.source, "r") as f:
-            exec(f.read(), script_globals)
-    except Exception as err:
-        _log.info("_end_ create from Python module (1)")
-        _log.error("Error executing Python file: %s", str(err))
-        return -1
-    try:
-        model = eval(args.build, script_globals)()
-    except Exception as err:
-        _log.info("_end_ create from Python module (1)")
-        _log.error("Error evaluating Python file: %s", str(err))
-        return -1
-    try:
-        conn = ic.Connectivity(input_model=model, **conn_kw)
-        formatter = get_formatter(conn, args.to, options)
-        formatter.write(args.ofile)
-    except (RuntimeError, ic.ModelLoadError) as err:
-        _log.info("_end_ create from Python model (1)")
-        _log.error(f"{err}")
-        return 1
+        try:
+            with open(args.source, "r") as f:
+                exec(f.read(), script_globals)
+        except Exception as err:
+            _log.info("_end_ create from Python module (1)")
+            _log.error("Error executing Python file: %s", str(err))
+            return -1
+        try:
+            model = eval(args.build, script_globals)()
+        except Exception as err:
+            _log.info("_end_ create from Python module (1)")
+            _log.error("Error evaluating Python file: %s", str(err))
+            return -1
+        try:
+            conn = ic.Connectivity(input_model=model, **conn_kw)
+            formatter = get_formatter(conn, args.to, args, options=options)
+            formatter.write(args.ofile)
+        except (RuntimeError, ic.ModelLoadError) as err:
+            _log.info("_end_ create from Python model (1)")
+            _log.error(f"{err}")
+            return 1
+    finally:
+        sys.argv = old_argv
     _log.info("_end_ create from Python script")
 
     return 0
@@ -191,7 +197,7 @@ def _code_main(args):
     return options, conn_kw
 
 
-def get_formatter(conn: object, fmt: str, options=None) -> ic.Formatter:
+def get_formatter(conn: object, fmt: str, args, options=None) -> ic.Formatter:
     options = {} if options is None else options
     fmt = fmt.lower().strip()
     if fmt == OutputFormats.CSV.value:
@@ -199,7 +205,11 @@ def get_formatter(conn: object, fmt: str, options=None) -> ic.Formatter:
     elif fmt == OutputFormats.D2.value:
         clazz = ic.D2
     elif fmt == OutputFormats.MERMAID.value:
-        clazz = ic.Mermaid
+        if args.mmdc:
+            clazz = ic.MermaidImage
+            options["mmdc"] = {"bin": args.mmdc_bin, "options": args.extra}
+        else:
+            clazz = ic.Mermaid
     elif fmt == OutputFormats.HTML.value:
         clazz = MermaidHtml
     else:
@@ -296,9 +306,6 @@ def _process_log_options(module_name: str, args: argparse.Namespace) -> logging.
     return log
 
 
-import shutil
-
-
 def _copy_images():
     # use importlib so this works on installed wheels, too
     image_path = imp_files("idaes_connectivity.images")
@@ -388,11 +395,17 @@ def main(command_line=None):
         "--version", help="Print version number and quit", action="store_true"
     )
     _add_log_options(p)
-    if command_line:
-        args = p.parse_args(args=command_line)
-    else:
-        args = p.parse_args()
-
+    p.add_argument(
+        "--mmdc",
+        action="store_true",
+        help="Use mermaid-cli tool (mmdc) to generate an image file directly",
+    )
+    p.add_argument(
+        "extra",
+        nargs=argparse.REMAINDER,
+        help="Extra arguments passed through to formatter (currently only used with --mmdc)",
+    )
+    args = p.parse_args()
     # Initialize the logger
     _log = _process_log_options("idaes_connectivity", args)
 
@@ -476,6 +489,23 @@ def main(command_line=None):
             args.to = OutputFormats.MERMAID.value
         else:
             args.to = OutputFormats.CSV.value
+    if args.mmdc:
+        if args.to == OutputFormats.MERMAID.value:
+            mmdc_bin = ic.MermaidImage.find_mmdc()
+            if mmdc_bin is None:
+                p.error(
+                    "Could not find command-line program 'mmdc' from mermaid-cli.\n"
+                    "This program can be installed with the node package manager: npm install -g @mermaid-js/mermaid-cli\n"
+                    "For more information, see https://github.com/mermaid-js/mermaid-cli\n"
+                    "For more information about the node package manager (NPM) see https://www.npmjs.com/"
+                )
+
+        else:
+            p.error(
+                f"Argument --mmdc only works for MermaidJS output, selected format is '{args.to}'"
+            )
+        # we are doing Mermaid, we have a mmdc_bin, so stash it in the 'args' and carry on
+        args.mmdc_bin = mmdc_bin
 
     return main_method(args)
 

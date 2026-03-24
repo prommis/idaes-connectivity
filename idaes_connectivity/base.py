@@ -28,7 +28,10 @@ from io import StringIO
 import logging
 from pathlib import Path
 import re
-import sys
+import shutil
+import subprocess
+from tempfile import NamedTemporaryFile
+import time
 from typing import TextIO, Tuple, Union, Optional, List, Dict
 import warnings
 
@@ -899,6 +902,69 @@ class Mermaid(Formatter):
             label = label[:-5]
         label = label.replace("_", " ")
         return label
+
+
+class MermaidImage(Formatter):
+    """Formatter that calls mermaid-cli command line program (mmdc) in order to
+    generate the diagram as an aimage file.
+
+    For more information about mermaid-cli, see https://github.com/mermaid-js/mermaid-cli
+
+    Example usage::
+
+        from idaes_connectivity.base import Connectivity, MermaidImage
+        # somehow create connectivity object, e.g. from a CSV file
+        conn = Connectivity(input_file="idaes_connectivity/tests/example_flowsheet.csv")
+        # create an image
+        MermaidImage(conn).write("flowsheet_diagram.png")
+    """
+
+    def __init__(self, conn: Connectivity, **kwargs):
+        """Constructor.
+
+        Args:
+            conn: Connectivity to graph
+            kwargs: Same as for the `Mermaid` class, except for an additional
+                    section for (optional) keywords related to the mmdc program::
+                    { "mmdc":
+                        "bin": "<path>", # path to the binary
+                        "options": ["<opt>", "<opt2>", ..]  # extra CLI opts
+                    }
+        """
+        if "mmdc" in kwargs:
+            self._bin = kwargs["mmdc"].get("bin", self.find_mmdc())
+            self._opt = kwargs["mmdc"].get("options", [])
+            del kwargs["mmdc"]
+        else:
+            self._bin = self.find_mmdc()
+            self._opt = []
+        self._formatter = Mermaid(conn, **kwargs)
+
+    def write(self, output_file: Path | str):
+        """Write to image file.
+
+        Arguments:
+            output_file: Image file name. Extension determines image type, as decided
+                         by the mermaid-cli program.
+        """
+        _log.info(f"Use 'mmdc' to create output in '{output_file}'")
+        # write mermaid output to a named temporary file
+        tmpfile = NamedTemporaryFile(mode="w")
+        self._formatter.write(tmpfile)
+        tmpfile.flush()
+        time.sleep(1)  # lame, but safer
+        # run mmdc on temporary file, writing its image output to provided file
+        args = [self._bin, "-i", tmpfile.name, "-o", output_file] + self._opt
+        _log.info(f"running: {' '.join(args)}")
+        try:
+            subprocess.check_call(args, stderr=subprocess.DEVNULL)
+        except (subprocess.CalledProcessError, FileNotFoundError) as err:
+            raise RuntimeError(err)
+
+    @staticmethod
+    def find_mmdc() -> str | None:
+        """Find CLI program for mermaid-cli (mmdc)."""
+        return shutil.which("mmdc")
 
 
 class D2(Formatter):
