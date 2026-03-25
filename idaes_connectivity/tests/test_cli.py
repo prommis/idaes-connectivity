@@ -189,8 +189,11 @@ def test_cli(
         args.append("--labels")
     if direction is not None:
         args.extend(["--direction", direction])
-    if verbosity is not None:
-        args.append(f"-{verbosity}")
+
+    # if verbosity is not None:
+    #     args.append(f"-{verbosity}")
+    args.append(f"-vv")  # XXX
+
     print(f"run cli.main with args: {args}")
     if return_code == -1:
         with pytest.raises(SystemExit):

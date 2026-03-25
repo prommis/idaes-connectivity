@@ -97,6 +97,8 @@ def csv_main(args) -> int:
     """
     _log.info(f"_begin_ create from matrix. args={args}")
 
+    print(f"@@ create from csv. args={args}")
+
     if args.ofile is None:
         args.ofile = infer_output_file(args.source, args.to)
         print(f"Output in: {args.ofile}")
@@ -150,11 +152,13 @@ def py_main(args) -> int:
     Returns:
         int: Code for sys.exit()
     """
-    _log.info("_begin_ create from Python script")
+    _log.info(
+        f"_begin_ create from Python script. source={args.source} ofile={args.ofile}"
+    )
     options, conn_kw = _code_main(args)
     script_globals = {}
     old_argv = sys.argv
-    sys.argv = [args.source, *args.extra_args]
+    sys.argv = [args.source]  # , *args.extra_args]
     try:
         try:
             with open(args.source, "r") as f:
@@ -207,7 +211,13 @@ def get_formatter(conn: object, fmt: str, args, options=None) -> ic.Formatter:
     elif fmt == OutputFormats.MERMAID.value:
         if args.mmdc:
             clazz = ic.MermaidImage
-            options["mmdc"] = {"bin": args.mmdc_bin, "options": args.extra}
+            mmdc_extra = []
+            for key in ("scale",):  # allow others later
+                value = getattr(args, f"mmdc_{key}", None)
+                if value:
+                    mmdc_extra.append(f"--{key}")
+                    mmdc_extra.append(str(value))
+            options["mmdc"] = {"bin": args.mmdc_bin, "options": mmdc_extra}
         else:
             clazz = ic.Mermaid
     elif fmt == OutputFormats.HTML.value:
@@ -394,18 +404,24 @@ def main(command_line=None):
     p.add_argument(
         "--version", help="Print version number and quit", action="store_true"
     )
-    _add_log_options(p)
     p.add_argument(
         "--mmdc",
         action="store_true",
         help="Use mermaid-cli tool (mmdc) to generate an image file directly",
     )
     p.add_argument(
-        "extra",
-        nargs=argparse.REMAINDER,
-        help="Extra arguments passed through to formatter (currently only used with --mmdc)",
+        "--mmdc-scale",
+        help="For --mmdc, scale diagram size by an integer factor",
+        default=1,
+        type=int,
     )
-    args = p.parse_args()
+    _add_log_options(p)
+
+    if command_line:
+        args = p.parse_args(command_line)
+    else:
+        args = p.parse_args()
+
     # Initialize the logger
     _log = _process_log_options("idaes_connectivity", args)
 
@@ -485,7 +501,7 @@ def main(command_line=None):
             main_method = module_main
 
     if args.to is None:
-        if main_method is csv_main:
+        if main_method is csv_main or args.mmdc:
             args.to = OutputFormats.MERMAID.value
         else:
             args.to = OutputFormats.CSV.value
