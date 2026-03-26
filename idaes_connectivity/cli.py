@@ -34,6 +34,10 @@ SCRIPT_NAME = "idaes-conn"
 _log = logging.getLogger(SCRIPT_NAME)
 
 
+class MainError(Exception):
+    pass
+
+
 class MermaidHtml(ic.Formatter):
     def __init__(self, conn, **mmd_opt):
         self._mmd = ic.Mermaid(conn, **mmd_opt)
@@ -70,14 +74,21 @@ class MermaidHtml(ic.Formatter):
             _log.debug(f"_end_ write MermaidJS HTML to '{filename}'")
 
 
-def infer_output_file(ifile: str, to_, input_file=None):
+def infer_output_file(ifile: str, to_, source_type, mermaid_image_fmt=None):
     to_fmt = OutputFormats(to_)  # arg checked already
-    ext = {
-        OutputFormats.MERMAID: "mmd",
-        OutputFormats.CSV: "csv",
-        OutputFormats.D2: "d2",
-    }[to_fmt]
-    i = ifile.rfind(".")
+    if mermaid_image_fmt:
+        ext = mermaid_image_fmt
+    else:
+        ext = {
+            OutputFormats.MERMAID: "mmd",
+            OutputFormats.CSV: "csv",
+            OutputFormats.D2: "d2",
+        }[to_fmt]
+    if source_type == "module":
+        i = len(ifile)  # use whole thing
+    else:  # py or csv
+        ifile = Path(ifile).name  # filename only
+        i = ifile.rfind(".")
     if i > 0:
         filename = ifile[:i] + "." + ext
     else:
@@ -97,14 +108,6 @@ def csv_main(args) -> int:
     """
     _log.info(f"_begin_ create from matrix. args={args}")
 
-    print(f"@@ create from csv. args={args}")
-
-    if args.ofile is None:
-        args.ofile = infer_output_file(args.source, args.to)
-        print(f"Output in: {args.ofile}")
-    elif args.ofile == CONSOLE:
-        args.ofile = sys.stdout
-
     fmt_opt = {"stream_labels": args.labels, "direction": args.direction}
 
     try:
@@ -112,12 +115,11 @@ def csv_main(args) -> int:
         formatter = get_formatter(conn, args.to, args)
         formatter.write(args.ofile)
     except (RuntimeError, ic.DataLoadError) as err:
-        _log.info("_end_ create from matrix (1)")
-        _log.error(f"{err}")
-        return 1
+        _log.info("_end_ create from matrix status=error")
+        raise MainError(str(err))
     _log.info("_end_ create from matrix")
 
-    return 0
+    return args.ofile
 
 
 def module_main(args) -> int:
@@ -136,12 +138,11 @@ def module_main(args) -> int:
         formatter = get_formatter(conn, args.to, args, options=options)
         formatter.write(args.ofile)
     except (RuntimeError, ic.ModelLoadError) as err:
-        _log.info("_end_ create from Python model (1)")
-        _log.error(f"{err}")
-        return 1
+        _log.info("_end_ create from Python model status=error")
+        raise MainError(str(err))
     _log.info("_end_ create from Python model")
 
-    return 0
+    return args.ofile
 
 
 def py_main(args) -> int:
@@ -164,34 +165,29 @@ def py_main(args) -> int:
             with open(args.source, "r") as f:
                 exec(f.read(), script_globals)
         except Exception as err:
-            _log.info("_end_ create from Python module (1)")
-            _log.error("Error executing Python file: %s", str(err))
+            _log.info("_end_ create from Python module status=error")
+            raise MainError(f"Executing Python file {err}")
             return -1
         try:
             model = eval(args.build, script_globals)()
         except Exception as err:
-            _log.info("_end_ create from Python module (1)")
-            _log.error("Error evaluating Python file: %s", str(err))
-            return -1
+            _log.info("_end_ create from Python module status=error")
+            raise MainError(f"Error evaluating Python file: {err}")
         try:
             conn = ic.Connectivity(input_model=model, **conn_kw)
             formatter = get_formatter(conn, args.to, args, options=options)
             formatter.write(args.ofile)
         except (RuntimeError, ic.ModelLoadError) as err:
-            _log.info("_end_ create from Python model (1)")
-            _log.error(f"{err}")
-            return 1
+            _log.info("_end_ create from Python model status=error")
+            raise MainError(str(err))
     finally:
         sys.argv = old_argv
     _log.info("_end_ create from Python script")
 
-    return 0
+    return args.ofile
 
 
 def _code_main(args):
-    if args.ofile is None or args.ofile == CONSOLE:
-        args.ofile = sys.stdout
-
     options = {"stream_labels": args.labels, "direction": args.direction}
     conn_kw = {}
     if args.fs is not None:
@@ -213,7 +209,7 @@ def get_formatter(conn: object, fmt: str, args, options=None) -> ic.Formatter:
             clazz = ic.MermaidImage
             mmdc_extra = []
             for key in ("scale",):  # allow others later
-                value = getattr(args, f"mmdc_{key}", None)
+                value = getattr(args, f"image_{key}", None)
                 if value:
                     mmdc_extra.append(f"--{key}")
                     mmdc_extra.append(str(value))
@@ -224,6 +220,7 @@ def get_formatter(conn: object, fmt: str, args, options=None) -> ic.Formatter:
         clazz = MermaidHtml
     else:
         raise ValueError(f"Unrecognized output format: {fmt}")
+
     return clazz(conn, **options)
 
 
@@ -405,13 +402,18 @@ def main(command_line=None):
         "--version", help="Print version number and quit", action="store_true"
     )
     p.add_argument(
-        "--mmdc",
+        "--png",
         action="store_true",
-        help="Use mermaid-cli tool (mmdc) to generate an image file directly",
+        help="Use mermaid-cli tool (mmdc) to generate  a PNG image file directly",
     )
     p.add_argument(
-        "--mmdc-scale",
-        help="For --mmdc, scale diagram size by an integer factor",
+        "--svg",
+        action="store_true",
+        help="Use mermaid-cli tool (mmdc) to generate a SVG image file directly",
+    )
+    p.add_argument(
+        "--image-scale",
+        help="For Mermaid images, scale diagram size by an integer factor",
         default=1,
         type=int,
     )
@@ -444,7 +446,17 @@ def main(command_line=None):
         server.kill_all()
         return 0
 
-    # Generate the mermaid diagram
+    # Process Mermaid image options
+    args.mmdc, mmd_img_fmt = None, None
+    if args.png and args.svg:
+        p.error("Arguments --svg and --png conflict")
+    if args.png:
+        # set pseudo-arg 'mmdc' and also image format
+        args.mmdc, mmd_img_fmt = True, "png"
+    elif args.svg:
+        args.mmdc, mmd_img_fmt = True, "svg"
+
+    # Generate the diagram
     if args.source is None:
         print("File or module source is required. Try --usage for details.\n")
         p.print_help()
@@ -459,7 +471,7 @@ def main(command_line=None):
                     f"{args.source}"
                 )
                 return 2
-            main_method = csv_main
+            main_method, source_type = csv_main, "csv"
         elif args.source.lower().endswith(".py"):
             path = Path(args.source)
             if not path.exists():
@@ -468,14 +480,14 @@ def main(command_line=None):
                     f"{args.source}"
                 )
                 return 2
-            main_method = py_main
+            main_method, source_type = py_main, "py"
         elif "/" in args.source:
             path = Path(args.source)
             if path.exists():
                 _log.warning(
                     "File path given, but suffix is not .csv; assuming CSV mode"
                 )
-                main_method = csv_main
+                main_method, source_type = csv_main, "csv"
             else:
                 print(f"Source looks like file path, but does not exist: {args.source}")
                 return 2
@@ -488,7 +500,7 @@ def main(command_line=None):
                     f"Source looks like a module name, but is not valid: {args.source}"
                 )
                 return 2
-            main_method = module_main
+            main_method, source_type = module_main, "module"
     else:
         if args.type == "csv":
             if not Path(args.source).exists():
@@ -499,6 +511,7 @@ def main(command_line=None):
             main_method = py_main
         elif args.type == "module":
             main_method = module_main
+        source_type = args.type
 
     if args.to is None:
         if main_method is csv_main or args.mmdc:
@@ -523,7 +536,26 @@ def main(command_line=None):
         # we are doing Mermaid, we have a mmdc_bin, so stash it in the 'args' and carry on
         args.mmdc_bin = mmdc_bin
 
-    return main_method(args)
+    # figure out output file if not given
+    if args.ofile is None:
+        if args.mmdc:
+            args.ofile = infer_output_file(
+                args.source, args.to, source_type, mermaid_image_fmt=mmd_img_fmt
+            )
+        else:
+            args.ofile = sys.stdout
+    elif args.ofile == CONSOLE:
+        args.ofile = sys.stdout
+
+    try:
+        output_file = main_method(args)
+    except MainError as err:
+        print(f"Error creating output: {err}")
+        return 1
+
+    if output_file is not sys.stdout:
+        print(f"Output in: {output_file}")
+    return 0
 
 
 if __name__ == "__main__":

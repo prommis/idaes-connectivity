@@ -1008,9 +1008,16 @@ class MermaidImage(Formatter):
         tmpfile = NamedTemporaryFile(mode="w")
         self._formatter.write(tmpfile)
         tmpfile.flush()
+        if _log.isEnabledFor(logging.DEBUG):
+            with open(tmpfile.name, "r") as f:
+                buf = f.read()
+            _log.debug(f"Contents of temporary file ({tmpfile.name}):\n{buf}")
         time.sleep(1)  # lame, but safer
         # run mmdc on temporary file, writing its image output to user-provided file
-        args = [self._bin, "-i", tmpfile.name, "-o", output_file] + self._opt
+        args = [self._bin, "-i", tmpfile.name]
+        if not hasattr(output_file, "close"):  # e.g. stdout
+            args.extend(["-o", output_file])
+        args += self._opt
         _log.info(f"running: {' '.join(args)}")
         try:
             subprocess.check_call(args, stderr=subprocess.DEVNULL)
