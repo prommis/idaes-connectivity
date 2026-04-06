@@ -1,19 +1,26 @@
 # Python API
 
-The Python API is contained in the *idaes_connectivity.base* module.
-The basic workflow is:
-* Create an instance of the [Connectivity](connectivity-class) class from a model.
-* Format the connectivity information with one of the subclasses of the [Formatter](formatter-classes) class, writing to a file
-or returning the value as a string.
+The Python API is contained in the *idaes_connectivity.base* module. The basic
+workflow is:
+* Create an instance of the [Connectivity](connectivity-class) class from a
+  model.
+* Format the connectivity information with one of the subclasses of the
+  [Formatter](formatter-classes) class, writing to a file or returning the value
+  as a string.
   - You can output CSV for viewing in a text editor or spreadsheet program.
-  - You can also output a text-based diagram specification for viewing in a tool such as Mermaid or D2. Find more details on the [diagrams](diagrams.md) page.
+  - You can also output a text-based diagram specification for viewing in a tool
+    such as Mermaid or D2. Find more details on the [diagrams](diagrams.md)
+    page.
 
-The rest of this page provides some [examples](api-examples) of API usage and details of the [Connectivity](connectivity-class) and [Formatter](formatter-classes) classes.
+The rest of this page provides some [examples](api-examples) of API usage and
+details of the [Connectivity](connectivity-class) and
+[Formatter](formatter-classes) classes.
 
 (api-examples)=
 ## Examples
 
-In these examples, we will assume we have an instance of Connectivity for a given model. 
+In these examples, we will assume we have an instance of Connectivity for a
+given model.
 ```
 from idaes_connectivity.tests.example_flowsheet import build
 model = build()
@@ -39,7 +46,14 @@ d2_fmt = D2(conn)
 d2_fmt.write("myfile.d2")
 ```
 
-Returning as a string requires `None` as the file argument (full example to show output):
+You can directly create a rendered Mermaid image diagram:
+```
+from idaes_connectivity.base import MermaidImage
+MermaidImage(conn).write("flowsheet_diagram.png")
+```
+
+Returning as a string requires `None` as the file argument (full example to show
+output):
 ```
 from idaes_connectivity.base import D2, Connectivity
 from idaes_connectivity.tests.example_flowsheet import build
@@ -58,8 +72,9 @@ Unit_B -> Unit_C
 Unit_C -> Unit_D
 ```
 
-A convenience method, `display_connectivity`, displays the Mermaid diagram inline in a Jupyter Notebook. 
-This requires JupyterLab 4.1 or Notebook 7.1, or later.
+A convenience method, `display_connectivity`, displays the Mermaid diagram
+inline in a Jupyter Notebook. This requires JupyterLab 4.1 or Notebook 7.1, or
+later.
 ```
 from idaes_connectivity.base import Connectivity
 from idaes_connectivity.jupyter import display_connectivity
@@ -107,8 +122,8 @@ The basic usage is:
 
 ### CSV formatter
 
-The CSV formatter writes out text as comma-separated values.
-It ignores the `direction` argument in the `Formatter` base class constructor.
+The CSV formatter writes out text as comma-separated values. It ignores the
+`direction` argument in the `Formatter` base class constructor.
 
 ```{eval-rst}
 .. autoclass:: idaes_connectivity.base.CSV
@@ -128,9 +143,10 @@ The Mermaid formatter writes out a Mermaid text description.
 
 #### Jupyter
 
-Mermaid is supported by newer versions of Jupyter Notebooks and Jupyter Lab.
-The *display_connectivity* function allows one to easily display a diagram in a Jupyter notebook.
-This function is also shown in the [Jupyter Notebook example](./example.md).
+Mermaid is supported by newer versions of Jupyter Notebooks and Jupyter Lab. The
+*display_connectivity* function allows one to easily display a diagram in a
+Jupyter notebook. This function is also shown in the
+[Jupyter Notebook example](./example.md).
 
 ```{eval-rst}
 .. autofunction:: idaes_connectivity.jupyter.display_connectivity

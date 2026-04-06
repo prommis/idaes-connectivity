@@ -28,8 +28,11 @@ from io import StringIO
 import logging
 from pathlib import Path
 import re
-import sys
-from typing import TextIO, Tuple, Union, Optional, List, Dict
+import shutil
+import subprocess
+from tempfile import NamedTemporaryFile
+import time
+from typing import TextIO, Tuple, Union, Optional, List, Dict, Any
 import warnings
 
 from PIL import Image as im
@@ -37,6 +40,8 @@ import base64
 import io, requests
 
 # third-party
+from IPython.display import Markdown
+
 try:
     import pyomo
     from pyomo.network import Arc
@@ -623,8 +628,57 @@ class Formatter(abc.ABC):
 
     defaults = {}  # extend in subclasses
 
-    def __init__(self, connectivity: Connectivity, **kwargs):
-        self._conn = connectivity
+    def __init__(self, connectivity: Connectivity | Any, **kwargs):
+        """Constructor.
+
+        Arguments:
+            connectivity: Either a Connectivity instance or any valid value
+                          for `input_*` arguments that could be passed to
+                          create a Connectivity instance.
+
+        Raises:
+            ValueError: Unable to construct Connectivity instance from provided arg
+        """
+        if isinstance(connectivity, Connectivity):
+            self._conn = connectivity
+        else:
+            self._conn = self._connectivity_factory(connectivity)
+
+    def _connectivity_factory(self, arg) -> Connectivity:
+        kwargs = {}
+        # a string can be many things:
+        # path, CSV, module name
+        if isinstance(arg, str):
+            try:
+                # is this a path?
+                path = Path(arg)
+                if not path.exists():
+                    raise ValueError()
+                kwargs["input_file"] = path
+            except ValueError:
+                # not a path. is it a CSV blob?
+                csv_data = arg.split("\n")
+                if len(csv_data) > 1:
+                    hdr = csv_data[0].split(",")
+                    if len(hdr) > 1:
+                        kwargs["input_data"] = arg
+                else:
+                    # not CSV. is it a module name?
+                    kwargs["input_module"] = arg
+        # things that are specifically file paths
+        elif isinstance(arg, TextIO) or isinstance(arg, Path):
+            kwargs["input_file"] = arg
+        # otherwise it is probably a model
+        elif hasattr(arg, "component_objects"):
+            kwargs["input_model"] = arg
+
+        if not kwargs:  # nothing matched!
+            raise ValueError(
+                "Argument is not an input file, Pyomo/IDAES model, "
+                "module name, or CSV text data"
+            )
+
+        return Connectivity(**kwargs)
 
     @staticmethod
     def _parse_direction(d):
@@ -776,6 +830,11 @@ class Mermaid(Formatter):
 
         return started
 
+    def _repr_markdown_(self):
+        """Display using Markdown in a Jupyter Notebook."""
+        graph_str = self.write(None)
+        return f"```mermaid\n{graph_str}\n```"
+
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
         """Write Mermaid text description."""
         f = self._get_output_stream(output_file)
@@ -899,6 +958,76 @@ class Mermaid(Formatter):
             label = label[:-5]
         label = label.replace("_", " ")
         return label
+
+
+class MermaidImage(Formatter):
+    """Formatter that calls mermaid-cli command line program (mmdc) in order to
+    generate the diagram as an aimage file.
+
+    For more information about mermaid-cli, see https://github.com/mermaid-js/mermaid-cli
+
+    Example usage::
+
+        from idaes_connectivity.base import Connectivity, MermaidImage
+        # somehow create connectivity object, e.g. from a CSV file
+        conn = Connectivity(input_file="idaes_connectivity/tests/example_flowsheet.csv")
+        # create an image
+        MermaidImage(conn).write("flowsheet_diagram.png")
+    """
+
+    def __init__(self, conn: Connectivity, **kwargs):
+        """Constructor.
+
+        Args:
+            conn: Connectivity to graph
+            kwargs: Same as for the `Mermaid` class, except for an additional
+                    section for (optional) keywords related to the mmdc program::
+                    { "mmdc":
+                        "bin": "<path>", # path to the binary
+                        "options": ["<opt>", "<opt2>", ..]  # extra CLI opts
+                    }
+        """
+        if "mmdc" in kwargs:
+            self._bin = kwargs["mmdc"].get("bin", self.find_mmdc())
+            self._opt = kwargs["mmdc"].get("options", [])
+            del kwargs["mmdc"]
+        else:
+            self._bin = self.find_mmdc()
+            self._opt = []
+        self._formatter = Mermaid(conn, **kwargs)
+
+    def write(self, output_file: Path | str):
+        """Write to image file.
+
+        Arguments:
+            output_file: Image file name. Extension determines image type, as decided
+                         by the mermaid-cli program.
+        """
+        _log.info(f"Use 'mmdc' to create output in '{output_file}'")
+        # write mermaid output to a named temporary file
+        tmpfile = NamedTemporaryFile(mode="w")
+        self._formatter.write(tmpfile)
+        tmpfile.flush()
+        if _log.isEnabledFor(logging.DEBUG):
+            with open(tmpfile.name, "r") as f:
+                buf = f.read()
+            _log.debug(f"Contents of temporary file ({tmpfile.name}):\n{buf}")
+        time.sleep(1)  # lame, but safer
+        # run mmdc on temporary file, writing its image output to user-provided file
+        args = [self._bin, "-i", tmpfile.name]
+        if not hasattr(output_file, "close"):  # e.g. stdout
+            args.extend(["-o", output_file])
+        args += self._opt
+        _log.info(f"running: {' '.join(args)}")
+        try:
+            subprocess.check_call(args, stderr=subprocess.DEVNULL)
+        except (subprocess.CalledProcessError, FileNotFoundError) as err:
+            raise RuntimeError(err)
+
+    @staticmethod
+    def find_mmdc() -> str | None:
+        """Find CLI program for mermaid-cli (mmdc)."""
+        return shutil.which("mmdc")
 
 
 class D2(Formatter):
