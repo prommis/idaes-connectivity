@@ -157,7 +157,7 @@ def py_main(args) -> int:
         f"_begin_ create from Python script. source={args.source} ofile={args.ofile}"
     )
     options, conn_kw = _code_main(args)
-    script_globals = {}
+    script_globals = {"__name__": args.source}
     old_argv = sys.argv
     sys.argv = [args.source]  # , *args.extra_args]
     try:
