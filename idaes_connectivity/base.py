@@ -777,7 +777,7 @@ class Mermaid(Formatter):
 
     # For theming the output
     # See: https://mermaid.js.org/config/theming.html#theme-variables
-    theme_variables = {"primaryColor": "#ffffff", "background": "#f4f4f4"}
+    theme_variables = {"primaryColor": "#dddddd", "background": "#cccc77"}
 
     def __init__(
         self,
@@ -818,10 +818,11 @@ class Mermaid(Formatter):
         self._img_css = image_css
         self._dark_mode = dark_mode
         # invert selected theme variables in dark mode
+        self._theme_variables = self.theme_variables.copy()
         if dark_mode:
             for key in "primaryColor", "background":
-                self.theme_variables[key] = self._invert_color(
-                    self.theme_variables[key]
+                self._theme_variables[key] = self._invert_color(
+                    self._theme_variables[key]
                 )
 
         # If component images are desired, start image server, etc.
@@ -913,7 +914,7 @@ class Mermaid(Formatter):
         i = " " * 8  # indent
         if self._dark_mode:
             outfile.write(f"{i}darkMode: true\n")
-        for name, value in self.theme_variables.items():
+        for name, value in self._theme_variables.items():
             outfile.write(f"{i}{name}: '{value}'\n")
         outfile.write("---\n\n")
 
