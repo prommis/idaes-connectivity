@@ -37,7 +37,11 @@ class Direction(Enum):
 
 CONSOLE = "-"
 
-DEFAULT_IMAGE_DIR = Path.home() / ".idaes" / "images"
+DEFAULT_SERVER_ROOT = Path.home() / ".idaes"
+
+# For dark/light images
+LIGHT = "light"
+DARK = "dark"
 
 
 class ComponentNames:
@@ -51,33 +55,31 @@ class ComponentNames:
         ```
     """
 
-    NAMES = (
-        "compressor",
-        "cooler",
-        "cstr",  #
-        "expander",
-        "fan",
-        "feed",  #
-        "flash",  #
-        "gibbs_reactor",
-        "heater",  #
-        "heat_exchanger",  #
-        "mixer",  #
-        "product",
-        "pump",
-        "splitter",
-    )
+    filenames = {
+        "compressor": "compressor.svg",
+        "cooler": "cooler.svg",
+        "cstr": "cstr.svg",  #
+        "expander": "expander.svg",
+        "fan": "fan.svg",
+        "feed": "feed.svg",  #
+        "flash": "flash.svg",  #
+        "gibbs_reactor": "gibbs_reactor.svg",
+        "heater": "heater_1.svg",  #
+        "heat_exchanger": "heat_exchanger.svg",  #
+        "mixer": "mixer.svg",  #
+        "product": "product.svg",
+        "pump": "pump.svg",
+        "splitter": "splitter.svg",
+        "stoichiometric_reactor": "reactor_s.svg",
+    }
 
-    def __init__(self):
-        """Constructor."""
-        self._filenames = {n: f"{n}.svg" for n in self.NAMES}
-
-    def get_filename(self, component) -> str | None:
+    def get_filename(self, component, dark_mode: bool = False) -> str | None:
         """Get (image) filename associated with component
 
         Args:
             component: Name of component class, component object,
                        or standardized name in `self.NAMES`
+            dark_moe: Get inverted images if dark mode is true
 
         Returns:
             str | None: Filename, or None if no match
@@ -87,22 +89,29 @@ class ComponentNames:
                             without a `local_name` attribute
         """
         try:
-            name = self._comp_name(component)
-            result = self._filenames[name]
+            result = self.filenames[self._comp_name(component)]
         except KeyError:
             result = None
+
+        # add dark/light mode marker
+        mode = DARK if dark_mode else LIGHT
+        spos = result.rfind(".")
+        result = result[:spos] + "_" + mode + result[spos:]
+
         return result
 
     def _comp_name(self, component):
+        """ "Get canonical name, for matching to image files"""
         # extract the component's name
         if isinstance(component, str):
-            comp = component.lower()
-            if comp in self.NAMES:
-                return comp  # already have standard name
+            # check if matches canonical name, then stop
+            if (cname := component.lower()) in self.filenames:
+                return self.filenames[cname]
+            # assume it's the name of class
             name = component
         else:
             name = component.local_name
-        # map to standardized name
+        # map to canonical name
         if name.endswith("CSTR"):
             return "cstr"
         elif name.endswith("Feed"):
@@ -113,6 +122,12 @@ class ComponentNames:
             return "heater"
         elif name.endswith("Mixer"):
             return "mixer"
+        elif name.endswith("Separator"):
+            return "splitter"
         elif name.endswith("HeatExchanger"):
             return "heat_exchanger"
+        elif name.endswith("StoichiometricReactor"):
+            return "stoichiometric_reactor"
+        elif name.endswith("PressureChanger"):
+            return "compressor"
         raise KeyError(name)

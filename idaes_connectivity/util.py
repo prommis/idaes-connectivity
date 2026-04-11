@@ -251,11 +251,16 @@ class FileServer:
     #: Base server port
     PORT = 8800
 
-    def __init__(self, run_dir: str | Path = None):
+    def __init__(
+        self,
+        root_dir: str | Path = None,
+        var_dir: str = "var",  # by default put log, etc. files in root/var
+        file_dir: str = "img",  # by default images are in root/img
+    ):
         """Create, but don't yet start, the server.
 
         Args:
-            run_dir: Directory to write output files.
+            run_root: Base run directory
                Three files will be written to this directory when the server
                starts, with the same base name and different suffixes
                  - `NAME.pid` - file with the current process ID
@@ -273,16 +278,25 @@ class FileServer:
         self._log.setLevel(logging.INFO)
         sh.setLevel(logging.INFO)
         # check and set run directory
-        if run_dir is None:
+        if root_dir is None:
             self._run_dir = IdaesPaths.home()
         else:
-            self._run_dir = Path(run_dir)
+            self._run_dir = Path(root_dir)
         if not self._run_dir.exists():
             raise FileExistsError(
                 f"Directory to store server state does not exist: {self._run_dir}"
             )
         self._port, self._port_file = -1, None
         self._pid, self._pid_file = -1, None
+        self._var_dir = self._run_dir / var_dir
+        self._file_dir = self._run_dir / file_dir
+        try:
+            self._var_dir.mkdir(parents=True, exist_ok=True)
+            self._file_dir.mkdir(parents=True, exist_ok=True)
+        except IOError:
+            raise ValueError(
+                f"Cannot make or use directories for one or both of: {self._var_dir}, {self._file_dir}"
+            )
 
     @property
     def port(self) -> int:
@@ -317,27 +331,31 @@ class FileServer:
         """
         return self._run_dir
 
-    def start(self, file_dir: str | Path, client_key: str = "default"):
-        """Run a simple HTTP server that serves files from `file_dir`.
+    def start(
+        self,
+        client_key: str = "default",
+        log_level: int = logging.INFO,
+    ):
+        """Run a simple HTTP server that serves files from `file_dir`, relative to constructor's `run_dir`.
 
         By choosing different values for `client_key` you can run different servers (to different dirs)
         on different ports. Put another way, there is one server running per value of `client_key`.
 
         Args:
-            file_dir: Directory for files
+            file_dir: Directory for files, relative to run directory
             client_key: Distinguish different servers (for different clients)
+            log_level: Server log level
         """
-        # check and set directory for files served
-        file_dir = Path(file_dir)
-        if not file_dir.exists():
-            raise FileExistsError(
-                f"Directory from which to serve files does not exist: {file_dir}"
-            )
+        self._log_level = log_level
 
         base_file = f"idaes_connectivity_image_server-{client_key}"
-        self._pid_file = self._run_dir / f"{base_file}.pid"
-        self._port_file = self._run_dir / f"{base_file}.port"
-        self._log_file = self._run_dir / f"{base_file}.log"
+        # set these relative to the run directory
+        rel_var_dir = self._var_dir.relative_to(self._run_dir)
+        self._rel_pid_file = rel_var_dir / f"{base_file}.pid"
+        self._pid_file = self._var_dir / f"{base_file}.pid"
+        self._rel_port_file = rel_var_dir / f"{base_file}.port"
+        self._port_file = self._var_dir / f"{base_file}.port"
+        self._rel_log_file = rel_var_dir / f"{base_file}.log"
 
         if self._pid_file.exists():
             pid_running = psutil.pid_exists(self.pid)
@@ -352,13 +370,14 @@ class FileServer:
                 )
         else:
             # no server, start a new one
-            self._log.info("No existing server found")
+            self._log.info(f"No existing server found (no pid file={self._pid_file})")
         # start new server, in a new process
         pid = os.fork()
         if pid == 0:  # child
-            self._redirect_fds()
-            log = self._setup_logging(self._log_file)
             # run
+            os.chdir(self._run_dir)  # change to run root
+            self._redirect_fds()
+            log = self._setup_logging(self._rel_log_file)
             try:
                 self._run_server(log, self.HOST)
             except Exception as err:
@@ -368,42 +387,45 @@ class FileServer:
     def _run_server(self, log, host):
         pid = os.getpid()
         log.info(f"Starting server pid={pid}")
-        with open(self._pid_file, "w") as f:
+        with open(self._rel_pid_file, "w") as f:
             f.write(f"{pid}\n")
         Handler = SimpleHTTPRequestHandler
-        # os.chdir(file_dir)  # serve from this directory
-        file_dir = Path.cwd()
+        server_dir = Path.cwd()
         port, ran_server = self.PORT, False
         while not ran_server and port < self.PORT + 32:
             try:
                 with socketserver.TCPServer((host, port), Handler) as httpd:
                     ran_server = True
-                    with open(self._port_file, "w") as f:
+                    with open(self._rel_port_file, "w") as f:
                         f.write(f"{port}\n")
-                    log.info(f"Serving from dir {file_dir} at {host}:{port}")
+                    log.info(f"Serving from dir {self._file_dir} at {host}:{port}")
                     try:
+                        # go inside file directory to serve files
+                        os.chdir(self._file_dir)
                         httpd.serve_forever()
                     except Exception as err:
                         log.info(f"Server stopped with error: {err}")
+                    finally:
+                        # go back to server root when done
+                        os.chdir(server_dir)
                     log.info("Server loop complete")
             except OSError:
                 # assume port is used
-                _log.warning(f"Port {port} in use, trying {port + 1}")
+                log.warning(f"Port {port} in use, trying {port + 1}")
                 port += 1
         if not ran_server:
-            _log.error(f"Could not find open port between {self.PORT} and {port - 1}")
+            log.error(f"Could not find open port between {self.PORT} and {port - 1}")
 
-    @staticmethod
-    def _setup_logging(filename):
+    def _setup_logging(self, filename):
         log = logging.getLogger("idaes_connectivity.image_server")
         handler = logging.FileHandler(filename)
         # handler = logging.StreamHandler()
-        handler.setLevel(logging.INFO)
+        handler.setLevel(self._log_level)
         handler.setFormatter(
             logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
         )
         log.addHandler(handler)
-        log.setLevel(logging.INFO)
+        log.setLevel(self._log_level)
         return log
 
     @staticmethod
@@ -437,13 +459,18 @@ class FileServer:
 
         return value
 
-    def kill_all(self):
+    def kill_all(self) -> int:
         """Kill all image servers found in the run directory.
 
         This is used by the command-line program `idaes-conn`.
+
+        Returns:
+           Number of things killed
         """
-        for filename in self._run_dir.glob("idaes_connectivity_image_server-*.pid"):
-            pid_file = self._run_dir / filename
+        pid_dir = self._var_dir
+        num_killed = 0
+        for filename in pid_dir.glob("idaes_connectivity_image_server-*.pid"):
+            pid_file = pid_dir / filename
             with open(pid_file, "r") as f:
                 pid_str = f.readline().strip()
             try:
@@ -458,6 +485,7 @@ class FileServer:
                 self._log.info(f"Killing server PID={pid}")
                 try:
                     os.kill(pid, 9)
+                    num_killed += 1
                 except OSError as err:
                     self._log.error(f"Could not kill PID={pid}: {err}")
                 self._log.info(f"Deleting PID file {pid_file}")
@@ -467,6 +495,8 @@ class FileServer:
                     self._log.error(f"Could not delete PID file: {err}")
             else:
                 self._log.warning(f"Server at PID={pid} not running")
+
+        return num_killed
 
 
 # crude test framework for the image_server functions
