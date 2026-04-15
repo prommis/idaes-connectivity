@@ -52,6 +52,32 @@ def list_rstrip(x: List) -> List:
     return x[: i + 1]
 
 
+def remove_frontmatter(lines: list[str]):
+    """Return a copy of input, with any YAML frontmatter removed"""
+    state, cur = 0, 0
+    for line in lines:
+        cur += 1
+        if not line.strip():
+            continue
+        if state == 0:
+            if line == "---":
+                state = 1
+            else:
+                break  # no frontmatter
+        elif state == 1:
+            if line == "---":
+                # done with frontmatter, but skip ws
+                # separator
+                state = 2
+        elif state == 2:
+            cur -= 1
+            break  # stop on non-empty line
+    if state == 0:  # no frontmatter in lines
+        return lines[:]
+    else:
+        return lines[cur:]
+
+
 @pytest.mark.unit
 def test_example_data(example_csv, example_mermaid, example_d2):
     model, conn = setup()
@@ -65,6 +91,7 @@ def test_example_data(example_csv, example_mermaid, example_d2):
         # normalize ws and remove blank lines at end (if any)
 
         items = list_rstrip([t.rstrip() for t in text.split("\n")])
+        items = remove_frontmatter(items)
         assert len(items) == len(ref)
         # compare line by line
         for i, item in enumerate(items):
@@ -187,9 +214,11 @@ def test_mermaid_images():
     conn = Connectivity(input_model=model.fs)
     mmd = Mermaid(conn, component_images=True)
 
+    diagram = mmd.write(None)
+    print(f"Diagram\n=========\n{diagram}\n===========")
     images = 0
     for line in mmd.write(None).split("\n"):
-        m = re.match(r"\s*\w+@\s*\{\s*img:.*\}", line)
+        m = re.match(r".*@\s*\{\s*img:.*\}", line)
         if m:
             images += 1
     assert images == 6

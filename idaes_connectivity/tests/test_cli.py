@@ -2,6 +2,8 @@
 Tests for command-line interface module.
 """
 
+import re
+
 import pytest
 from idaes_connectivity.cli import main
 from idaes_connectivity.tests.example_flowsheet_data import (
@@ -202,3 +204,47 @@ def test_cli(
         assert return_code == main(args)
     if return_code == 0 and output_path is not None:
         assert output_path.exists()
+
+
+@pytest.mark.unit
+def test_cli_html(tmp_path, example_csv):
+    # create input CSV file
+    input_path = tmp_path / "test.csv"
+    with open(input_path, "w") as f:
+        f.write("\n".join(example_csv))
+
+    # choose an output filename
+    output_html = input_path.parent / (input_path.stem + ".html")
+
+    # set base CLI args
+    args = ["--to", "html", str(input_path), "-O", str(output_html)]
+    print(f"run cli.main with args: {args}")
+    return_code = main(args)
+    assert return_code == 0
+
+    # check output file
+    assert output_html.exists()
+    expected_lines_re = [
+        r"<!DOCTYPE html>",
+        r"<html>",
+        r"<head>",
+        r"<script src='https:.*mermaid.min.js'></script>",
+        r"<body>",
+        r"<div class='mermaid'>",
+        r"flowchart .*",
+        r"</div>",
+        r"</body>",
+        r"</html>",
+    ]
+    # check that lines above occur in this order in the file
+    with open(output_html, "r") as f:
+        cur, i = 0, 0
+        for i, line in enumerate(f):
+            sline = line.strip()  # ignore leading/trailing whitespace
+            if re.match(expected_lines_re[cur], sline):
+                print(f"{(i + 1):02d} {expected_lines_re[cur]} ~= '{sline}'")
+                cur += 1
+        # double-check that all lines matched, i.e. well-formed HTML file
+        assert cur == len(
+            expected_lines_re
+        ), f"failed to match at expr '{expected_lines_re[cur]}'"

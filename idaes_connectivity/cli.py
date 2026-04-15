@@ -45,9 +45,10 @@ class MainError(Exception):
 
 
 class MermaidHtml(ic.Formatter):
+    """Create Mermaid HTML page.
 
-    # additional CSS styles for the page
-    styles = []
+    This class is a thin wrapper around the base `Mermaid.write_html()` method.
+    """
 
     def __init__(self, conn, **mmd_opt):
         """Create HTML page with embedded Mermaid diagram.
@@ -58,7 +59,6 @@ class MermaidHtml(ic.Formatter):
                      constructor.
         """
         self._mmd = ic.Mermaid(conn, **mmd_opt)
-        self._dark_mode = mmd_opt.get("dark_mode", False)
 
     def write(self, output_file) -> str | None:
         """Write MermaidJS HTML to output file.
@@ -66,37 +66,7 @@ class MermaidHtml(ic.Formatter):
         Args:
             output_file (str or file-like): Output file path or file-like object
         """
-        f = self._get_output_stream(output_file)
-        return self._write_html(f)
-
-    def _write_html(self, f) -> str | None:
-        """Write MermaidJS HTML to file-like object.
-
-        Args:
-            f (file-like): Output file-like object
-        """
-        if _log.isEnabledFor(logging.DEBUG):
-            filename = f.name if hasattr(f, "name") else str(f)
-            _log.debug(f"_begin_ write MermaidJS HTML to '{filename}'")
-        styles = self.styles.copy()
-        if self._dark_mode:
-            styles.append("body { background-color: #111111;}")
-        f.write("<!DOCTYPE html>\n")
-        f.write("<html>\n<head>\n")
-        f.write(
-            "<script src='https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js'></script>\n"
-        )
-        f.write(f"<style>\n{'\n'.join(styles)}\n</style>")
-        f.write("</head>\n<body>\n")
-        f.write("<div class='mermaid'>\n")
-        f.write(self._mmd.write(None))
-        f.write("\n</div>\n")
-        f.write("</body>\n</html>\n")
-        f.flush()
-        if _log.isEnabledFor(logging.DEBUG):
-            _log.debug(f"_end_ write MermaidJS HTML to '{filename}'")
-        if hasattr(f, "getvalue"):  # StringIO-like
-            return f.getvalue()
+        return self._mmd.write_html(output_file)
 
 
 def infer_output_file(ifile: str, to_, source_type, mermaid_image_fmt=None):

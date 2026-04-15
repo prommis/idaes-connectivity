@@ -25,10 +25,10 @@ def test_get_stream_display_values(flowsheet):
 
 
 def test_file_server(tmpdir):
-    server = util.FileServer(run_dir=tmpdir)
+    server = util.FileServer(root_dir=tmpdir)
     key = str(int(time.time()))
     print(f"key={key}")
-    server.start(".", client_key=key)
+    server.start(client_key=key)
     assert server.pid > 0
     assert server.port > 0
-    server.kill_all()
+    assert server.shutdown()

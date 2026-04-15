@@ -89,14 +89,15 @@ class ComponentNames:
                             without a `local_name` attribute
         """
         try:
-            result = self.filenames[self._comp_name(component)]
-        except KeyError:
-            result = None
+            name = self._comp_name(component)
+            filename = self.filenames[name]
+        except KeyError as err:
+            return None
 
-        # add dark/light mode marker
+        # add dark/light mode marker, e.g. 'foo.svg' -> 'foo_dark.svg'
         mode = DARK if dark_mode else LIGHT
-        spos = result.rfind(".")
-        result = result[:spos] + "_" + mode + result[spos:]
+        spos = filename.rfind(".")
+        result = filename[:spos] + "_" + mode + filename[spos:]
 
         return result
 
@@ -106,7 +107,7 @@ class ComponentNames:
         if isinstance(component, str):
             # check if matches canonical name, then stop
             if (cname := component.lower()) in self.filenames:
-                return self.filenames[cname]
+                return cname
             # assume it's the name of class
             name = component
         else:
