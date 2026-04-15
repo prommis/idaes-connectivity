@@ -271,12 +271,7 @@ class FileServer:
             FileExistsError: If `run_dir` does not exist.
         """
         # logging
-        sh = logging.StreamHandler()
-        sh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s"))
-        self._log = logging.Logger("idaes_connectivity-FileServer")
-        self._log.addHandler(sh)
-        self._log.setLevel(logging.INFO)
-        sh.setLevel(logging.INFO)
+        self._log = logging.Logger("idaes_connectivity.FileServer")
         # check and set run directory
         if root_dir is None:
             self._run_dir = IdaesPaths.home()
@@ -335,7 +330,7 @@ class FileServer:
         self,
         client_key: str = "default",
         log_level: int = logging.INFO,
-    ):
+    ) -> bool:
         """Run a simple HTTP server that serves files from `file_dir`, relative to constructor's `run_dir`.
 
         By choosing different values for `client_key` you can run different servers (to different dirs)
@@ -345,6 +340,9 @@ class FileServer:
             file_dir: Directory for files, relative to run directory
             client_key: Distinguish different servers (for different clients)
             log_level: Server log level
+
+        Returns:
+            True if new server was started, False otherwise
         """
         self._log_level = log_level
 
@@ -362,7 +360,7 @@ class FileServer:
             # if running, we are done
             if pid_running:
                 self._log.info(f"Server is already running PID={self.pid}")
-                return
+                return False
             # otherwise, we are going to start a new server
             else:
                 self._log.warning(
@@ -382,7 +380,9 @@ class FileServer:
                 self._run_server(log, self.HOST)
             except Exception as err:
                 log.critical("Stop server on error: {err}")
+        self._pid = pid
         self._log.info("Server started")
+        return True
 
     def _run_server(self, log, host):
         pid = os.getpid()
@@ -416,15 +416,33 @@ class FileServer:
         if not ran_server:
             log.error(f"Could not find open port between {self.PORT} and {port - 1}")
 
+    def shutdown(self) -> bool:
+        """Shut down running server.
+
+        Returns:
+            True if shutdown was successful (including nothing to do),
+            False if shutdown had errors
+        """
+        no_errors = True
+        if self._pid < 0:
+            return no_errors  # not parent process
+        try:
+            os.kill(self._pid, 9)
+            self._pid = -1
+        except OSError as err:
+            self._log.error(f"Could not kill PID={pid}: {err}")
+            no_errors = False
+        if self._pid == -1:
+            try:
+                self._pid_file.unlink()
+                self._port_file.unlink()
+            except IOError as err:
+                self._log.error(f"Process killed but could not delete files: {err}")
+                no_errors = False
+        return no_errors
+
     def _setup_logging(self, filename):
         log = logging.getLogger("idaes_connectivity.image_server")
-        handler = logging.FileHandler(filename)
-        # handler = logging.StreamHandler()
-        handler.setLevel(self._log_level)
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s [%(levelname)s] - %(message)s")
-        )
-        log.addHandler(handler)
         log.setLevel(self._log_level)
         return log
 

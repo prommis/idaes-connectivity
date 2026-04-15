@@ -17,8 +17,8 @@ from importlib.resources import files as imp_files
 import logging
 from pathlib import Path
 import re
-import shutil
 import sys
+import time
 
 # package
 import idaes_connectivity.base as ic
@@ -382,6 +382,11 @@ def main(command_line=None):
         help="Copy images to standard IDAES image directory (for Mermaid)",
     )
     p.add_argument(
+        "--start-image-server",
+        action="store_true",
+        help="Run local image server (for custom images)",
+    )
+    p.add_argument(
         "--kill-image-server",
         action="store_true",
         help="Kill all running image servers (for Mermaid)",
@@ -478,9 +483,32 @@ def main(command_line=None):
         n = _copy_images()
         print(f"Copied {n} images")
         return 0
-    if args.kill_image_server:
+    if args.start_image_server:
         server = FileServer()
-        server.kill_all()
+        server.start(log_level=_log.getEffectiveLevel())
+        try:
+            port = server.port
+            print(
+                f"Server started at http://localhost:{port}. Press Control-C to stop."
+            )
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\nInterrupted")
+            ok = server.shutdown()
+            if not ok:
+                print("There were some errors during shutdown")
+            print("Server stopped.")
+            return 0
+    if args.kill_image_server:
+        print("Killing running image server(s)..")
+        server = FileServer()
+        num = server.kill_all()
+        if num > 0:
+            plural = num > 1
+            print(f"Killed {num} running server{'s' if plural else ''}")
+        else:
+            print(f"No running servers found")
         return 0
 
     # Process Mermaid image options
