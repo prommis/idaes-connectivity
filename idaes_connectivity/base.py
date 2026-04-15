@@ -51,7 +51,7 @@ except ImportError as err:
 
 # package
 from idaes_connectivity.util import IdaesPaths, UnitIcon, FileServer
-from idaes_connectivity.const import Direction, ComponentNames, DEFAULT_IMAGE_DIR
+from idaes_connectivity.const import Direction, ComponentNames, DEFAULT_SERVER_ROOT
 
 __author__ = "Dan Gunter (LBNL)"
 
@@ -152,13 +152,13 @@ class Connectivity:
             if input_module is not None or input_model is not None:
                 if input_model is None:
                     try:
-                        _log.info("[begin] load and build model")
+                        _log.debug("[begin] load and build model")
                         mod = importlib.import_module(input_module)
                         build_function = getattr(mod, model_build_func)
                         _log.debug(f"[begin] build model function={model_build_func}")
                         input_model = build_function()
                         _log.debug("[ end ] build model")
-                        _log.info("[ end ] load and build model")
+                        _log.debug("[ end ] load and build model")
                     except Exception as err:
                         raise ModelLoadError(err)
                 if model_flowsheet_attr == "":
@@ -170,7 +170,7 @@ class Connectivity:
                         raise ModelLoadError(err)
                 self._create_from_model(flowsheet)
             elif input_file is not None or input_data is not None:
-                _log.info("[begin] load from file or data")
+                _log.debug("[begin] load from file or data")
                 if input_file is not None:
                     if isinstance(input_file, str) or isinstance(input_file, Path):
                         datafile = open(input_file, "r")
@@ -184,7 +184,7 @@ class Connectivity:
                     self._rows = input_data[1:]
                 if len(self._rows) == 0:  # e.g., when loading from CSV
                     raise DataLoadError(datafile.name, "Empty file")
-                _log.info("[end] load from file or data")
+                _log.debug("[end] load from file or data")
             else:
                 raise ValueError("No inputs provided")
             self.units = self._build_units()
@@ -441,7 +441,7 @@ class Connectivity:
         return connections
 
     def _create_from_model(self, fs):
-        _log.info("begin:_create_from_model")
+        _log.debug("begin:_create_from_model")
 
         units_ord, units_idx = {}, 0
         units, streams = [], []
@@ -496,7 +496,7 @@ class Connectivity:
         # ["<stream name>", 0|1|-1, 0|1|-1, ...]
         self._rows = [[streams[i]] + r for i, r in enumerate(rows)]
 
-        _log.info("end:_create_from_model")
+        _log.debug("end:_create_from_model")
 
     @staticmethod
     def _add_model_stream(
@@ -648,6 +648,8 @@ class Formatter(abc.ABC):
         kwargs = {}
         # a string can be many things:
         # path, CSV, module name
+        if isinstance(arg, Connectivity):
+            return arg
         if isinstance(arg, str):
             try:
                 # is this a path?
@@ -773,18 +775,38 @@ class Mermaid(Formatter):
         "indent": "    ",
     }
 
+    #: For theming the output
+    #: See: https://mermaid.js.org/config/theming.html#theme-variables
+    theme_variables = {"primaryColor": "#dddddd", "background": "#cccc77"}
+
+    #: Additional CSS styles for the HTML page
+    #: created by write_html() method
+    css_styles = []
+
     def __init__(
         self,
         connectivity: Connectivity,
+        dark_mode: bool = False,
+        log_level: int = logging.WARNING,
         component_images=False,
-        component_image_dir=None,
+        image_css: str | None = None,
+        server_root_dir: Optional[Path] = None,
+        server_img_dir: Optional[Path] = None,
+        server_var_dir: Optional[Path] = None,
         **kwargs,
     ):
         """Constructor. See class `defaults` for default values.
 
         Args:
             connectivity (Connectivity): Model connectivity
-            kwargs (dict): See `Mermaid.defaults` for keywords
+            dark_mode: If true, change styles for dark mode display
+            log_level: Logging level for the image server, and possibly this class
+            component_images: If true, run a server for images
+            image_css: Use provided string as CSS class for images, otherwise create one internally
+            server_root_dir: Server root for images
+            server_img_dir: Server image subdir, should be below server_root_dir
+            server_var_dir: Server var (bookkeeping) subdir, should be below server_var_dir
+            kwargs: Keyword arguments passed through to parent's constructor
 
         Raises:
             ValueError: Invalid `direction` argument.
@@ -799,10 +821,22 @@ class Mermaid(Formatter):
         self._direction = self._parse_direction(kwargs["direction"])
         if self._stream_values:
             self._streams_with_values = set()
+        self._img_css = image_css
+        self._dark_mode = dark_mode
+        self._log_level = log_level
+        # invert selected theme variables in dark mode
+        self._theme_variables = self.theme_variables.copy()
+        if dark_mode:
+            for key in "primaryColor", "background":
+                self._theme_variables[key] = self._invert_color(
+                    self._theme_variables[key]
+                )
 
         # If component images are desired, start image server, etc.
         if component_images:
-            self._images = self._start_image_server(component_image_dir)
+            self._images = self._start_image_server(
+                server_root_dir, server_img_dir, server_var_dir
+            )
             if self._images:
                 self._comp_names = ComponentNames()
                 self._host = self._image_server.HOST
@@ -810,25 +844,57 @@ class Mermaid(Formatter):
         else:
             self._images = False
 
-    def _start_image_server(self, component_image_dir: Path | str) -> bool:
-        started = False
-
-        self._image_server = FileServer()
-
-        if component_image_dir is None:
-            image_dir = DEFAULT_IMAGE_DIR
+    @staticmethod
+    def _invert_color(color):
+        if isinstance(color, str):
+            color = color.strip()
+            if color[0] == "#":
+                hex_color = color.lstrip("#")
+                if len(hex_color) == 3:
+                    r = int(hex_color[0], 16) * 16
+                    g = int(hex_color[1], 16) * 16
+                    b = int(hex_color[2], 16) * 16
+                elif len(hex_color) == 6:
+                    r = int(hex_color[0:2], 16)
+                    g = int(hex_color[2:4], 16)
+                    b = int(hex_color[4:6], 16)
+                else:
+                    raise ValueError(
+                        f"Hexadecimal RGB must be #rgb or #rrggbb: '{color}'"
+                    )
         else:
-            image_dir = Path(component_image_dir)
+            raise ValueError(f"Invalid color format: {color}")
+        return f"#{255 - r:02X}{255 - g:02X}{255 - b:02X}"
 
+    def _start_image_server(self, root_dir, img_dir, var_dir) -> bool:
+        # set up arguments
+        if root_dir is None:
+            root_dir = Path(DEFAULT_SERVER_ROOT)
+        kwargs = {"root_dir": root_dir}
+        if img_dir is not None:
+            if img_dir.is_absolute():
+                kwargs["file_dir"] = str(img_dir.relative_to(root_dir))
+            else:
+                kwargs["file_dir"] = str(img_dir)
+        if var_dir is not None:
+            if var_dir.is_absolute():
+                kwargs["var_dir"] = str(var_dir.relative_to(root_dir))
+            else:
+                kwargs["var_dir"] = str(var_dir)
+        # create file server
+        self._image_server = FileServer(**kwargs)
+        # try to start file server
         try:
-            self._image_server.start(file_dir=image_dir)
-            started = True
+            _log.info(f"Starting image server (root_dir={root_dir})")
+            new_server = self._image_server.start(log_level=self._log_level)
+            running = True
+            self._port = self._image_server.port
+            action = "Successfully started" if new_server else "Used existing"
+            _log.info(f"{action} image server")
         except (FileExistsError, ValueError) as err:
-            _log.error(
-                f"Could not start image server (unit images will not be shown): {err}"
-            )
+            _log.error(f"Could not start image server (root_dir={root_dir}): {err}")
 
-        return started
+        return running
 
     def _repr_markdown_(self):
         """Display using Markdown in a Jupyter Notebook."""
@@ -836,10 +902,56 @@ class Mermaid(Formatter):
         return f"```mermaid\n{graph_str}\n```"
 
     def write(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
-        """Write Mermaid text description."""
+        """Write Mermaid text description.
+
+        Arguments:
+            output_file: Output stream, None to return a string
+
+        Returns:
+            A string if output_file was None, else None
+        """
         f = self._get_output_stream(output_file)
+        self._frontmatter(f)
         self._body(f)
         return self._write_return(f)
+
+    def write_html(self, output_file: Union[str, TextIO, None]) -> Optional[str]:
+        """Write HTML page with Mermaid text inside and a callout to
+        a CDN to run Mermaid and generate the diagram.
+
+        Arguments:
+            output_file: Output stream, None to return a string
+
+        Returns:
+            A string if output_file was None, else None
+        """
+        diagram = self.write(None)
+        f = self._get_output_stream(output_file)
+        styles = self.css_styles.copy()
+        if self._dark_mode:
+            styles.append("body { background-color: #111111;}")
+        f.write("<!DOCTYPE html>\n")
+        f.write("<html>\n<head>\n")
+        f.write(
+            "<script src='https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js'></script>\n"
+        )
+        f.write(f"<style>\n{'\n'.join(styles)}\n</style>")
+        f.write("</head>\n<body>\n")
+        f.write("<div class='mermaid'>\n")
+        f.write(diagram)
+        f.write("\n</div>\n")
+        f.write("</body>\n</html>\n")
+        return self._write_return(f)
+
+    def _frontmatter(self, outfile):
+        outfile.write("---\n")
+        outfile.write("config:\n    theme: 'base'\n    themeVariables:\n")
+        i = " " * 8  # indent
+        if self._dark_mode:
+            outfile.write(f"{i}darkMode: true\n")
+        for name, value in self._theme_variables.items():
+            outfile.write(f"{i}{name}: '{value}'\n")
+        outfile.write("---\n\n")
 
     def _body(self, outfile):
         i = self.indent
@@ -848,7 +960,7 @@ class Mermaid(Formatter):
         # Stream values
         if self._stream_values:
             outfile.write(
-                f"{i}classDef streamval fill:#fff,stroke:#666,stroke-width:1px,font-size:80%;\n"
+                f"{i}classDef streamValue fill:#fff,stroke:#666,stroke-width:1px,font-size:80%;\n"
             )
             for name, values in self._conn.stream_values.items():
                 if values:
@@ -860,7 +972,15 @@ class Mermaid(Formatter):
                     outfile.write(f'{i}{sv_name}("{sv_text}")\n')
                     self._streams_with_values.add(sv_name)
             all_streams = ",".join(self._streams_with_values)
-            outfile.write(f"{i}class {all_streams} streamval;\n")
+            outfile.write(f"{i}class {all_streams} streamValue;\n")
+        if self._images:  # add imgNode class for styling images
+            if self._img_css:
+                img_class = self._img_css
+            else:
+                outfile.write(
+                    f"{i}classDef imgNode stroke-width:0,fill:none,background-color:transparent;\n"
+                )
+                img_class = "imgNode"
         # Get connections and which streams to show
         connections, show_streams = self._get_connections()
         # Units. Handle variations:
@@ -872,7 +992,8 @@ class Mermaid(Formatter):
             node_name, node_class = self._get_node_info(name)
             if self._images and (img_url := self._get_url(node_class)):
                 # image. images don't add key=value pairs (yet)
-                node_str = f'{abbr}@{{ img: "{img_url}", label: {node_name}, h: 50, constraint: "on"}}'
+                # note: spaces after/before curly braces are *essential*
+                node_str = f'{abbr}:::{img_class}@{{ img: "{img_url}", label: {node_name}, h: 50, constraint: "on" }}'
             else:
                 # plain or key/value
                 nclass = f"::{node_class}" if self._unit_class else ""
@@ -900,7 +1021,9 @@ class Mermaid(Formatter):
 
     def _get_url(self, node_class):
         return (  # returns None if filename=None
-            filename := self._comp_names.get_filename(node_class)
+            filename := self._comp_names.get_filename(
+                node_class, dark_mode=self._dark_mode
+            )
         ) and f"http://{self._host}:{self._port}/{filename}"
 
     @staticmethod

@@ -17,12 +17,18 @@ from importlib.resources import files as imp_files
 import logging
 from pathlib import Path
 import re
-import shutil
 import sys
+import time
 
 # package
 import idaes_connectivity.base as ic
-from idaes_connectivity.const import OutputFormats, CONSOLE, DEFAULT_IMAGE_DIR
+from idaes_connectivity.const import (
+    OutputFormats,
+    CONSOLE,
+    DEFAULT_SERVER_ROOT,
+    DARK,
+    LIGHT,
+)
 from idaes_connectivity.version import VERSION
 from idaes_connectivity.util import FileServer
 
@@ -39,39 +45,28 @@ class MainError(Exception):
 
 
 class MermaidHtml(ic.Formatter):
+    """Create Mermaid HTML page.
+
+    This class is a thin wrapper around the base `Mermaid.write_html()` method.
+    """
+
     def __init__(self, conn, **mmd_opt):
+        """Create HTML page with embedded Mermaid diagram.
+
+        Arguments:
+            conn: Connectivity instance
+            mmd_opt: Additional keyword arguments passed to Mermaid class
+                     constructor.
+        """
         self._mmd = ic.Mermaid(conn, **mmd_opt)
 
-    def write(self, output_file):
+    def write(self, output_file) -> str | None:
         """Write MermaidJS HTML to output file.
 
         Args:
             output_file (str or file-like): Output file path or file-like object
         """
-        f = self._get_output_stream(output_file)
-        self._write_html(f)
-
-    def _write_html(self, f):
-        """Write MermaidJS HTML to file-like object.
-
-        Args:
-            f (file-like): Output file-like object
-        """
-        if _log.isEnabledFor(logging.DEBUG):
-            filename = f.name if hasattr(f, "name") else str(f)
-            _log.debug(f"_begin_ write MermaidJS HTML to '{filename}'")
-        f.write("<!DOCTYPE html>\n")
-        f.write("<html>\n<head>\n")
-        f.write(
-            "<script src='https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js'></script>\n"
-        )
-        f.write("</head>\n<body>\n")
-        f.write("<div class='mermaid'>\n")
-        f.write(self._mmd.write(None))
-        f.write("\n</div>\n")
-        f.write("</body>\n</html>\n")
-        if _log.isEnabledFor(logging.DEBUG):
-            _log.debug(f"_end_ write MermaidJS HTML to '{filename}'")
+        return self._mmd.write_html(output_file)
 
 
 def infer_output_file(ifile: str, to_, source_type, mermaid_image_fmt=None):
@@ -157,7 +152,7 @@ def py_main(args) -> int:
         f"_begin_ create from Python script. source={args.source} ofile={args.ofile}"
     )
     options, conn_kw = _code_main(args)
-    script_globals = {}
+    script_globals = {"__name__": args.source}
     old_argv = sys.argv
     sys.argv = [args.source]  # , *args.extra_args]
     try:
@@ -317,18 +312,30 @@ def _copy_images():
     # use importlib so this works on installed wheels, too
     image_path = imp_files("idaes_connectivity.images")
     n = 0
-    dst_dir = DEFAULT_IMAGE_DIR
+    dst_dir = Path(DEFAULT_SERVER_ROOT) / "img"
     suffixes = (".svg", ".png")
     for filename in image_path.iterdir():
         if filename.suffix not in suffixes:
             continue
         src = image_path / filename
         dst = dst_dir / filename.name
-        _log.info(f"Copying image from {src} -> {dst}")
-        shutil.copy(src, dst)
+        _copy_image(src, dst)
         n += 1
     _log.info(f"Copied {n} images from {image_path} -> {dst_dir}")
     return n
+
+
+def _copy_image(src, dst):
+    # read input file and change stroke colors from black to white
+    with open(src, "r") as infile:
+        img_src = infile.read()
+    mode_col = {LIGHT: "#111111", DARK: "#eeeeee"}
+    for mode, col in mode_col.items():
+        buf = img_src.replace("stroke:#000000", f"stroke:{col}")
+        # new output file
+        filename = dst.parent / (dst.stem + "_" + mode + dst.suffix)
+        with open(filename, "w") as outfile:
+            outfile.write(buf)
 
 
 def main(command_line=None):
@@ -343,6 +350,11 @@ def main(command_line=None):
         "--copy-images",
         action="store_true",
         help="Copy images to standard IDAES image directory (for Mermaid)",
+    )
+    p.add_argument(
+        "--start-image-server",
+        action="store_true",
+        help="Run local image server (for custom images)",
     )
     p.add_argument(
         "--kill-image-server",
@@ -441,9 +453,32 @@ def main(command_line=None):
         n = _copy_images()
         print(f"Copied {n} images")
         return 0
-    if args.kill_image_server:
+    if args.start_image_server:
         server = FileServer()
-        server.kill_all()
+        server.start(log_level=_log.getEffectiveLevel())
+        try:
+            port = server.port
+            print(
+                f"Server started at http://localhost:{port}. Press Control-C to stop."
+            )
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\nInterrupted")
+            ok = server.shutdown()
+            if not ok:
+                print("There were some errors during shutdown")
+            print("Server stopped.")
+            return 0
+    if args.kill_image_server:
+        print("Killing running image server(s)..")
+        server = FileServer()
+        num = server.kill_all()
+        if num > 0:
+            plural = num > 1
+            print(f"Killed {num} running server{'s' if plural else ''}")
+        else:
+            print(f"No running servers found")
         return 0
 
     # Process Mermaid image options

@@ -10,4 +10,5 @@ chapters:
 - file: cli
 - file: diagrams
 - file: mermaid_in_jupyter
+- file: mermaid_html
 - file: copyright
