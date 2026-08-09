@@ -15,6 +15,7 @@ Utility functions and classes.
 # stdlib
 from http.server import SimpleHTTPRequestHandler
 import logging
+import multiprocessing
 import os
 from pathlib import Path
 import psutil
@@ -353,26 +354,31 @@ class FileServer:
         else:
             # no server, start a new one
             self._log.info("No existing server found")
-        # start new server, in a new process
-        pid = os.fork()
-        if pid == 0:  # child
-            self._redirect_fds()
-            log = self._setup_logging(self._log_file)
-            # run
-            try:
-                self._run_server(log, self.HOST)
-            except Exception as err:
-                log.critical("Stop server on error: {err}")
-        self._log.info("Server started")
+        # start new server in a separate process using multiprocessing
+        ctx = multiprocessing.get_context("spawn")
+        proc = ctx.Process(
+            target=_run_file_server_process,
+            args=(
+                self._pid_file,
+                self._port_file,
+                self._log_file,
+                file_dir,
+                self.PORT,
+                self.HOST,
+            ),
+            daemon=False,
+        )
+        proc.start()
+        self._pid = proc.pid
+        self._log.info(f"Server started PID={self._pid}")
 
-    def _run_server(self, log, host):
+    def _run_server(self, log, host, file_dir):
         pid = os.getpid()
         log.info(f"Starting server pid={pid}")
         with open(self._pid_file, "w") as f:
             f.write(f"{pid}\n")
         Handler = SimpleHTTPRequestHandler
-        # os.chdir(file_dir)  # serve from this directory
-        file_dir = Path.cwd()
+        os.chdir(file_dir)
         port, ran_server = self.PORT, False
         while not ran_server and port < self.PORT + 32:
             try:
@@ -410,9 +416,9 @@ class FileServer:
     def _redirect_fds():
         sys.stdout.flush()
         sys.stderr.flush()
-        sys.stdin = open("/dev/null", "r")
-        sys.stdout = open("/dev/null", "a+")
-        sys.stderr = open("/dev/null", "a+")
+        sys.stdin = open(os.devnull, "r")
+        sys.stdout = open(os.devnull, "a+")
+        sys.stderr = open(os.devnull, "a+")
 
     def _read_int_eventually(self, path, name) -> int:
         value, tries = -1, 0
@@ -467,6 +473,43 @@ class FileServer:
                     self._log.error(f"Could not delete PID file: {err}")
             else:
                 self._log.warning(f"Server at PID={pid} not running")
+
+
+def _run_file_server_process(
+    pid_file: Path,
+    port_file: Path,
+    log_file: Path,
+    file_dir: Path,
+    port_base: int,
+    host: str,
+):
+    FileServer._redirect_fds()
+    log = FileServer._setup_logging(log_file)
+    pid = os.getpid()
+    log.info(f"Starting server pid={pid}")
+    with open(pid_file, "w") as f:
+        f.write(f"{pid}\n")
+    Handler = SimpleHTTPRequestHandler
+    file_dir = Path(file_dir)
+    os.chdir(file_dir)
+    port, ran_server = port_base, False
+    while not ran_server and port < port_base + 32:
+        try:
+            with socketserver.TCPServer((host, port), Handler) as httpd:
+                ran_server = True
+                with open(port_file, "w") as f:
+                    f.write(f"{port}\n")
+                log.info(f"Serving from dir {file_dir} at {host}:{port}")
+                try:
+                    httpd.serve_forever()
+                except Exception as err:
+                    log.info(f"Server stopped with error: {err}")
+                log.info("Server loop complete")
+        except OSError:
+            _log.warning(f"Port {port} in use, trying {port + 1}")
+            port += 1
+    if not ran_server:
+        _log.error(f"Could not find open port between {port_base} and {port - 1}")
 
 
 # crude test framework for the image_server functions

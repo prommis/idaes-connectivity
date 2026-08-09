@@ -961,6 +961,17 @@ class Mermaid(Formatter):
     def _clean_stream_label(value: str) -> str:
         return '"' + value + '"'
 
+    def stop_image_server(self):
+        """Stop the image server, if it was started."""
+        if self._images:
+            self._image_server.kill_all()
+            self._images = False
+
+    # XXXX
+    # OLD method to take _outlet and _feed suffixes off stream names.
+    # This looks better, but means the names no longer match what is in
+    # the model, which is confusing. So we don't do it for now.
+    # XXXX
     # @staticmethod
     # def _clean_stream_label(label):
     #     if label.endswith("_outlet"):
