@@ -15,8 +15,9 @@ try:
     from prommis.uky.uky_flowsheet import build
 
     uky_model = build()
-except ImportError:
+except ImportError as err:
     uky_model = None
+    uky_model_err = err
 
 # other third-party
 import pandas as pd
@@ -27,8 +28,9 @@ __author__ = "Dan Gunter"
 def main():
     if uky_model is None:
         print(
-            "Import error, probably PrOMMiS is not installed. "
-            "See https://prommis.readthedocs.io/ for installation instructions."
+            f"Import error, probably PrOMMiS is not installed. "
+            f"See https://prommis.readthedocs.io/ for installation instructions.\n"
+            f"Error message: {uky_model_err}"
         )
         return -1
 
