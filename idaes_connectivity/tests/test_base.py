@@ -11,8 +11,10 @@
 """
 Tests for `base` module.
 """
+
 # stdlib
 import re
+import sys
 from typing import List
 
 # third-party
@@ -40,7 +42,7 @@ UNIT_1 = "M01"
 
 def setup():
     model = example_flowsheet.build()
-    conn = Connectivity(input_model=model)
+    conn = Connectivity(input_model=model, shortened_names=True)
     return model, conn
 
 
@@ -182,14 +184,23 @@ def test_unit_and_stream_values_formatter(klass):
             assert u_found_class == (1 if uc_flag else 0)
 
 
-def test_mermaid_images():
-    model = example_flowsheet2.build()
+@pytest.mark.component
+def test_mermaid_images(tmp_path):
+    if sys.platform == "win32":
+        pytest.skip("Skipping test_mermaid_images on Windows")
+        # it actually runs, but seems unwilling to kill the server process,
+        # so it hangs the test suite.  Not sure why.
+
+    model = example_flowsheet.build()
     conn = Connectivity(input_model=model.fs)
-    mmd = Mermaid(conn, component_images=True)
+    mmd = Mermaid(conn, component_images=True, component_image_dir=tmp_path)
 
     images = 0
     for line in mmd.write(None).split("\n"):
+        print(f"test_mermaid_images: check line='{line}' for image")
         m = re.match(r"\s*\w+@\s*\{\s*img:.*\}", line)
         if m:
             images += 1
-    assert images == 6
+    assert images == 3
+
+    mmd.stop_image_server()

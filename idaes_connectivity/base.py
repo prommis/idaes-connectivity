@@ -117,6 +117,7 @@ class Connectivity:
         input_model=None,
         model_flowsheet_attr: str = "",
         model_build_func: str = "build",
+        shortened_names: bool = False,
     ):
         """Create from existing data or one of the valid input types.
 
@@ -136,12 +137,15 @@ class Connectivity:
                                   use the model object as the flowsheet.
             model_build_func: Name of function in `input_module` to invoke to build
                               and return the model object.
+            shortened_names: If True, shorten unit names by stripping off any common prefixes to the dotted name.
+                             If False (the default), leave unit names as-is.
 
         Raises:
             ModelLoadError: Couldn't load the model/module
             ValueError: Invalid inputs
         """
         self._unit_classes = {}
+        self._shortened_names = shortened_names
         self._arc_descend = True  # XXX: Maybe make this an option later?
         if units is not None and streams is not None and connections is not None:
             self.units = units
@@ -454,8 +458,11 @@ class Connectivity:
             _log.debug(f"arc short names: {[a.getname() for a in sorted_arcs]}")
             _log.debug(f"arc full names : {[a.name for a in sorted_arcs]}")
         # create `self._name_map`: arc names to shortened names
-        # with common prefixes stripped
-        self._build_name_map(sorted_arcs)
+        # with common prefixes stripped, if desired
+        if self._shortened_names:
+            self._build_name_map(sorted_arcs)
+        else:
+            self._name_map = {}
 
         # Main loop, each arc builds one row in `rows`
         for comp in sorted_arcs:
@@ -951,13 +958,28 @@ class Mermaid(Formatter):
         return connections, show_streams
 
     @staticmethod
-    def _clean_stream_label(label):
-        if label.endswith("_outlet"):
-            label = label[:-7]
-        elif label.endswith("_feed"):
-            label = label[:-5]
-        label = label.replace("_", " ")
-        return label
+    def _clean_stream_label(value: str) -> str:
+        return '"' + value + '"'
+
+    def stop_image_server(self):
+        """Stop the image server, if it was started."""
+        if self._images:
+            self._image_server.kill_all()
+            self._images = False
+
+    # XXXX
+    # OLD method to take _outlet and _feed suffixes off stream names.
+    # This looks better, but means the names no longer match what is in
+    # the model, which is confusing. So we don't do it for now.
+    # XXXX
+    # @staticmethod
+    # def _clean_stream_label(label):
+    #     if label.endswith("_outlet"):
+    #         label = label[:-7]
+    #     elif label.endswith("_feed"):
+    #         label = label[:-5]
+    #     label = label.replace("_", " ")
+    #     return label
 
 
 class MermaidImage(Formatter):
