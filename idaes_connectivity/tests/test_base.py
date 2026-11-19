@@ -14,7 +14,6 @@ Tests for `base` module.
 
 # stdlib
 import re
-import sys
 from typing import List
 
 # third-party
@@ -24,16 +23,15 @@ import numpy as np
 from pathlib import Path
 
 # package
-from idaes_connectivity.base import Connectivity, CSV, Mermaid, D2
+from idaes_connectivity.base import Connectivity, CSV, Mermaid
 from idaes_connectivity.tests import example_flowsheet, example_flowsheet2
 from idaes_connectivity.tests.example_flowsheet_data import (
     example_csv,
     example_mermaid,
-    example_d2,
 )
 
 # avoid warnings about unused imports
-_1, _2, _3 = example_csv, example_d2, example_mermaid
+_1, _2 = example_csv, example_mermaid
 
 # Constants
 STREAM_1 = "fs.s01"
@@ -55,13 +53,12 @@ def list_rstrip(x: List) -> List:
 
 
 @pytest.mark.unit
-def test_example_data(example_csv, example_mermaid, example_d2):
+def test_example_data(example_csv, example_mermaid):
     model, conn = setup()
     # loop over each output format
     for name, text, ref in (
         ("CSV", CSV(conn).write(None), example_csv),
         ("Mermaid", Mermaid(conn).write(None), example_mermaid),
-        ("D2", D2(conn).write(None), example_d2),
     ):
         print(f"@ Start {name} {text},{ref}")
         # normalize ws and remove blank lines at end (if any)
@@ -79,11 +76,11 @@ def test_example_data(example_csv, example_mermaid, example_d2):
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("klass", (Mermaid, D2))
-def test_defaults_formatters(klass):
+def test_defaults_formatters(monkeypatch):
     _, conn = setup()
+    klass = Mermaid
 
-    klass.defaults["stream_labels"] = True
+    monkeypatch.setitem(klass.defaults, "stream_labels", True)
 
     # not given (use default)
     fmt = klass(conn)
@@ -107,9 +104,9 @@ def test_save_image(tmpdir_factory):
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("klass", (Mermaid, D2))
-def test_stream_values_formatter(klass):
+def test_stream_values_formatter():
     _, conn = setup()
+    klass = Mermaid
     test_key, test_val = "test_value", 123
     conn.set_stream_value(STREAM_1, test_key, test_val)
     for stream_labels in (True, False):
@@ -125,9 +122,9 @@ def test_stream_values_formatter(klass):
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("klass", (Mermaid, D2))
-def test_unit_values_formatter(klass):
+def test_unit_values_formatter():
     _, conn = setup()
+    klass = Mermaid
     test_key, test_val, test_unit_class = "test_value", 123, "foobar"
     conn.set_unit_value(UNIT_1, test_key, test_val)
     conn.set_unit_class(UNIT_1, test_unit_class)
@@ -146,9 +143,9 @@ def test_unit_values_formatter(klass):
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("klass", (Mermaid, D2))
-def test_unit_and_stream_values_formatter(klass):
+def test_unit_and_stream_values_formatter():
     _, conn = setup()
+    klass = Mermaid
     s_test_key, s_test_val = "s_test_value", 123
     conn.set_stream_value(STREAM_1, s_test_key, s_test_val)
     u_test_key, u_test_val, u_test_unit_class = "u_test_value", 123, "foobar"
@@ -184,23 +181,15 @@ def test_unit_and_stream_values_formatter(klass):
             assert u_found_class == (1 if uc_flag else 0)
 
 
-@pytest.mark.component
-def test_mermaid_images(tmp_path):
-    if sys.platform == "win32":
-        pytest.skip("Skipping test_mermaid_images on Windows")
-        # it actually runs, but seems unwilling to kill the server process,
-        # so it hangs the test suite.  Not sure why.
-
-    model = example_flowsheet.build()
+@pytest.mark.unit
+def test_mermaid_icons():
+    model = example_flowsheet2.build()
     conn = Connectivity(input_model=model.fs)
-    mmd = Mermaid(conn, component_images=True, component_image_dir=tmp_path)
+    mmd = Mermaid(conn)
 
-    images = 0
-    for line in mmd.write(None).split("\n"):
-        print(f"test_mermaid_images: check line='{line}' for image")
-        m = re.match(r"\s*\w+@\s*\{\s*img:.*\}", line)
-        if m:
-            images += 1
-    assert images == 3
-
-    mmd.stop_image_server()
+    icon_lines = [
+        line
+        for line in mmd.write(None).splitlines()
+        if re.match(r'\s*\w+@\{icon: "idaes:', line)
+    ]
+    assert len(icon_lines) == 5

@@ -1,0 +1,13 @@
+{
+  "name": "@prommis/idaes-icons-build",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Build tooling for the IDAES process equipment Iconify collection",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "@iconify/tools": "5.0.14"
+  }
+}

@@ -7,11 +7,10 @@ from idaes_connectivity.cli import main
 from idaes_connectivity.tests.example_flowsheet_data import (
     example_csv,
     example_mermaid,
-    example_d2,
 )
 
 # avoid warnings about unused imports
-_1, _2, _3 = example_csv, example_d2, example_mermaid
+_1, _2 = example_csv, example_mermaid
 
 ex_mod = "idaes_connectivity.tests.example_flowsheet"
 ex_csv = "example_flowsheet.csv"
@@ -35,7 +34,7 @@ return_code = 0  # Should succeed
 fs_name, build_func, labels, direction = None, None, False, None
 # multiplicative
 for source in "file", "module":
-    for fmt in ("csv", "mermaid", "d2"):
+    for fmt in ("csv", "mermaid"):
         for verbosity in (None, "v", "vv", "vvv"):
             for infer_output in (True, False):
                 for infer_type in (True, False):
@@ -87,7 +86,7 @@ for infer_type in (True, False):
             )
         )
     for labels in (False, True):
-        for fmt in ("csv", "mermaid", "d2"):
+        for fmt in ("csv", "mermaid"):
             for direction in (None, "LR", "TD"):
                 run_matrix.append(
                     (

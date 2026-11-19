@@ -6,7 +6,7 @@ import logging
 
 from tempfile import NamedTemporaryFile
 from shutil import copyfile
-from idaes_connectivity.base import Connectivity, CSV, Mermaid, D2
+from idaes_connectivity.base import Connectivity, CSV, Mermaid
 
 TAB = "    "
 
@@ -29,7 +29,6 @@ def generate(
     data = {
         "csv": CSV(conn).write(None),
         "mermaid": Mermaid(conn).write(None),
-        "d2": D2(conn).write(None),
     }
     outfile = NamedTemporaryFile("w", encoding="utf-8")
     with open(filename, "r") as infile:

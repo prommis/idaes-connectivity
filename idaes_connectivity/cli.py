@@ -22,10 +22,8 @@ import sys
 
 # package
 import idaes_connectivity.base as ic
-from idaes_connectivity.const import OutputFormats, CONSOLE, DEFAULT_IMAGE_DIR
+from idaes_connectivity.const import OutputFormats, CONSOLE
 from idaes_connectivity.version import VERSION
-from idaes_connectivity.util import FileServer
-
 
 __author__ = "Dan Gunter (LBNL)"
 
@@ -38,42 +36,6 @@ class MainError(Exception):
     pass
 
 
-class MermaidHtml(ic.Formatter):
-    def __init__(self, conn, **mmd_opt):
-        self._mmd = ic.Mermaid(conn, **mmd_opt)
-
-    def write(self, output_file):
-        """Write MermaidJS HTML to output file.
-
-        Args:
-            output_file (str or file-like): Output file path or file-like object
-        """
-        f = self._get_output_stream(output_file)
-        self._write_html(f)
-
-    def _write_html(self, f):
-        """Write MermaidJS HTML to file-like object.
-
-        Args:
-            f (file-like): Output file-like object
-        """
-        if _log.isEnabledFor(logging.DEBUG):
-            filename = f.name if hasattr(f, "name") else str(f)
-            _log.debug(f"_begin_ write MermaidJS HTML to '{filename}'")
-        f.write("<!DOCTYPE html>\n")
-        f.write("<html>\n<head>\n")
-        f.write(
-            "<script src='https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js'></script>\n"
-        )
-        f.write("</head>\n<body>\n")
-        f.write("<div class='mermaid'>\n")
-        f.write(self._mmd.write(None))
-        f.write("\n</div>\n")
-        f.write("</body>\n</html>\n")
-        if _log.isEnabledFor(logging.DEBUG):
-            _log.debug(f"_end_ write MermaidJS HTML to '{filename}'")
-
-
 def infer_output_file(ifile: str, to_, source_type, mermaid_image_fmt=None):
     to_fmt = OutputFormats(to_)  # arg checked already
     if mermaid_image_fmt:
@@ -82,7 +44,6 @@ def infer_output_file(ifile: str, to_, source_type, mermaid_image_fmt=None):
         ext = {
             OutputFormats.MERMAID: "mmd",
             OutputFormats.CSV: "csv",
-            OutputFormats.D2: "d2",
         }[to_fmt]
     if source_type == "module":
         i = len(ifile)  # use whole thing
@@ -202,8 +163,6 @@ def get_formatter(conn: object, fmt: str, args, options=None) -> ic.Formatter:
     fmt = fmt.lower().strip()
     if fmt == OutputFormats.CSV.value:
         clazz = ic.CSV
-    elif fmt == OutputFormats.D2.value:
-        clazz = ic.D2
     elif fmt == OutputFormats.MERMAID.value:
         if args.mmdc:
             clazz = ic.MermaidImage
@@ -217,7 +176,7 @@ def get_formatter(conn: object, fmt: str, args, options=None) -> ic.Formatter:
         else:
             clazz = ic.Mermaid
     elif fmt == OutputFormats.HTML.value:
-        clazz = MermaidHtml
+        clazz = ic.MermaidHtml
     else:
         raise ValueError(f"Unrecognized output format: {fmt}")
 
@@ -236,7 +195,6 @@ generates input for a graph drawing program that can be
 rendered as a simple diagram of the flowsheet. Available graph outputs are:
 
 - mermaid: Produce the graph in Mermaid format (see http://mermaid.js.org/)
-- d2: Produce the graph in D2 format (see https://d2lang.com/)
 
 The *module* mode starts from a Python module, calls its 'build()' function to
 build a model, then either (a) writes out the connectivity CSV for that model, or
@@ -255,10 +213,6 @@ Example command-lines (showing the two modes):
 
     # Print the MermaidJS diagram to the console instead of to a file
     {SCRIPT_NAME}  uky_conn.csv --to mermaid --output-file "-"
-
-    # Print input for D2 to default file, with streams labeled
-    {SCRIPT_NAME} uky_conn.csv --to d2 --labels
-    # (console)> Output in: uky_conn.d2
 
 The connectivity matrix format is:
 
@@ -313,24 +267,6 @@ def _process_log_options(module_name: str, args: argparse.Namespace) -> logging.
     return log
 
 
-def _copy_images():
-    # use importlib so this works on installed wheels, too
-    image_path = imp_files("idaes_connectivity.images")
-    n = 0
-    dst_dir = DEFAULT_IMAGE_DIR
-    suffixes = (".svg", ".png")
-    for filename in image_path.iterdir():
-        if filename.suffix not in suffixes:
-            continue
-        src = image_path / filename
-        dst = dst_dir / filename.name
-        _log.info(f"Copying image from {src} -> {dst}")
-        shutil.copy(src, dst)
-        n += 1
-    _log.info(f"Copied {n} images from {image_path} -> {dst_dir}")
-    return n
-
-
 def main(command_line=None):
     global _log
 
@@ -338,17 +274,6 @@ def main(command_line=None):
         description="Process and/or generate model connectivity information"
     )
     p.add_argument("--usage", action="store_true", help="Print usage with examples")
-    # Mermaid-image related
-    p.add_argument(
-        "--copy-images",
-        action="store_true",
-        help="Copy images to standard IDAES image directory (for Mermaid)",
-    )
-    p.add_argument(
-        "--kill-image-server",
-        action="store_true",
-        help="Kill all running image servers (for Mermaid)",
-    )
     # set nargs=? so --usage works without any other argument; though
     # this will require more checks later
     p.add_argument(
@@ -433,17 +358,6 @@ def main(command_line=None):
         return 0
     if args.usage:
         print(USAGE)
-        return 0
-
-    # For Mermaid images
-    # See util.FileServer, const.ImageNames, and base.Mermaid
-    if args.copy_images:
-        n = _copy_images()
-        print(f"Copied {n} images")
-        return 0
-    if args.kill_image_server:
-        server = FileServer()
-        server.kill_all()
         return 0
 
     # Process Mermaid image options

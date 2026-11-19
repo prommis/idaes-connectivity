@@ -14,24 +14,11 @@ def example_csv():
 def example_mermaid():
     return [
         "flowchart LR",
-        '    Unit_B["M01"]',
-        '    Unit_C["H02"]',
-        '    Unit_D["F03"]',
+        '    Unit_B@{icon: "idaes:mixer", form: "square", label: "M01", pos: "B", h: 50}',
+        '    Unit_C@{icon: "idaes:heater-1", form: "square", label: "H02", pos: "B", h: 50}',
+        '    Unit_D@{icon: "idaes:flash", form: "square", label: "F03", pos: "B", h: 50}',
         "    Unit_B --> Unit_C",
         "    Unit_C --> Unit_D",
-    ]
-
-
-@pytest.fixture
-def example_d2():
-    return [
-        "direction: right",
-        "Unit_B: M01 {",
-        "  shape: image",
-        "  icon: /home/dang/.idaes/icon_shapes/mixer.svg",
-        "}",
-        "Unit_C: H02",
-        "Unit_D: F03",
-        "Unit_B -> Unit_C",
-        "Unit_C -> Unit_D",
+        "classDef idaesUnit fill:#cdf;",
+        "class Unit_B,Unit_C,Unit_D idaesUnit;",
     ]

@@ -2,21 +2,21 @@
 Tests for const module.
 """
 
-import pytest
 from idaes_connectivity import const
-from pyomo.environ import Component
 
 
-def test_component_names():
-    c = const.ComponentNames()
+def test_output_formats():
+    assert {item.name: item.value for item in const.OutputFormats} == {
+        "MERMAID": "mermaid",
+        "CSV": "csv",
+        "HTML": "html",
+    }
 
-    with pytest.raises(AttributeError):
-        c.get_filename(None)
 
-    comp = Component(name="mystery", ctype="T")
-    assert c.get_filename(comp) is None
+def test_direction():
+    assert const.Direction.RIGHT.value == 0
+    assert const.Direction.DOWN.value == 1
 
-    comp = Component(name="Mixer", ctype="T")
-    assert "mixer" in c.get_filename(comp)
 
-    assert "mixer" in c.get_filename("mixer")
+def test_console():
+    assert const.CONSOLE == "-"
